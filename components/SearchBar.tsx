@@ -10,6 +10,13 @@ interface Props {
 
 const GENS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
+const dropdownStyle = {
+  background: "oklch(0.12 0.02 240 / 0.97)",
+  border: "1px solid oklch(0.95 0 0 / 0.1)",
+  boxShadow: "0 8px 32px oklch(0 0 0 / 0.5)",
+  backdropFilter: "blur(12px)",
+} as const;
+
 export default function SearchBar({ onSearch, loading }: Props) {
   const [name, setName] = useState("");
   const [query, setQuery] = useState(""); // only set on user input, drives autocomplete
@@ -71,7 +78,6 @@ export default function SearchBar({ onSearch, loading }: Props) {
     setName(selectedName);
     setQuery(""); // reset query → effect clears suggestions, no new fetch
     setShowSuggestions(false);
-    setSuggestions([]);
     onSearch(selectedName, gen);
     inputRef.current?.blur();
   }
@@ -157,7 +163,6 @@ export default function SearchBar({ onSearch, loading }: Props) {
               onClick={() => {
                 setName("");
                 setQuery("");
-                setSuggestions([]);
                 setShowSuggestions(false);
                 inputRef.current?.focus();
               }}
@@ -236,13 +241,7 @@ export default function SearchBar({ onSearch, loading }: Props) {
       {showGenDropdown && (
         <div
           className="absolute right-0 mt-1 rounded-xl overflow-hidden z-50 py-1"
-          style={{
-            background: "oklch(0.12 0.02 240 / 0.97)",
-            border: "1px solid oklch(0.95 0 0 / 0.1)",
-            boxShadow: "0 8px 32px oklch(0 0 0 / 0.5)",
-            backdropFilter: "blur(12px)",
-            minWidth: "100px",
-          }}
+          style={{ ...dropdownStyle, minWidth: "100px" }}
         >
           {GENS.map((g) => (
             <button
@@ -275,12 +274,7 @@ export default function SearchBar({ onSearch, loading }: Props) {
         <ul
           role="listbox"
           className="absolute left-0 right-0 mt-1 rounded-xl overflow-hidden z-50"
-          style={{
-            background: "oklch(0.12 0.02 240 / 0.97)",
-            border: "1px solid oklch(0.95 0 0 / 0.1)",
-            boxShadow: "0 8px 32px oklch(0 0 0 / 0.5)",
-            backdropFilter: "blur(12px)",
-          }}
+          style={dropdownStyle}
         >
           {suggestions.map((s, i) => (
             <li
