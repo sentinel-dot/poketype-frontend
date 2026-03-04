@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { fetchMatchup, ApiError } from "@/lib/apiclient";
-import type { MatchupResponse } from "@/lib/types";
+import { fetchMatchup, fetchEvolution, ApiError } from "@/lib/apiclient";
+import type { MatchupResponse, EvolutionResponse } from "@/lib/types";
 import SearchBar from "@/components/SearchBar";
 import PokemonCard from "@/components/PokemonCard";
+import EvolutionCard from "@/components/EvolutionCard";
 
 type SearchState =
   | { status: "idle" }
@@ -12,13 +13,28 @@ type SearchState =
   | { status: "success"; data: MatchupResponse }
   | { status: "error"; message: string };
 
+type EvoState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "success"; data: EvolutionResponse }
+  | { status: "error"; message: string };
+
+type Tab = "matchup" | "evolution";
+
 const EXAMPLES = ["Glurak", "Pikachu", "Bisaflor", "Gengar", "Mewtwo"];
 
 export default function Page() {
   const [state, setState] = useState<SearchState>({ status: "idle" });
+  const [evoState, setEvoState] = useState<EvoState>({ status: "idle" });
+  const [activeTab, setActiveTab] = useState<Tab>("matchup");
+  const [currentGen, setCurrentGen] = useState(9);
 
   async function handleSearch(name: string, gen: number) {
     setState({ status: "loading" });
+    setEvoState({ status: "idle" });
+    setActiveTab("matchup");
+    setCurrentGen(gen);
+
     try {
       const data = await fetchMatchup(name, gen);
       setState({ status: "success", data });
@@ -37,9 +53,27 @@ export default function Page() {
     }
   }
 
+  async function handleTabChange(tab: Tab) {
+    setActiveTab(tab);
+
+    if (tab === "evolution" && state.status === "success" && evoState.status === "idle") {
+      setEvoState({ status: "loading" });
+      try {
+        const data = await fetchEvolution(state.data.pokemon);
+        setEvoState({ status: "success", data });
+      } catch (err) {
+        const msg =
+          err instanceof ApiError ? err.message : "Entwicklungsdaten konnten nicht geladen werden.";
+        setEvoState({ status: "error", message: msg });
+      }
+    }
+  }
+
   function handleExample(name: string) {
     handleSearch(name, 9);
   }
+
+  const showTabs = state.status === "success";
 
   return (
     <>
@@ -94,6 +128,32 @@ export default function Page() {
       <main className="flex-1 max-w-2xl w-full mx-auto px-4 sm:px-5 py-6 sm:py-8 flex flex-col gap-6">
         <SearchBar onSearch={handleSearch} loading={state.status === "loading"} />
 
+        {/* Tabs (only when a pokemon is loaded) */}
+        {showTabs && (
+          <div
+            className="flex gap-1 p-1 rounded-xl self-start"
+            style={{ background: "oklch(0.11 0.025 260 / 0.7)", border: "1px solid oklch(0.25 0.04 260 / 0.4)" }}
+          >
+            {(["matchup", "evolution"] as Tab[]).map((tab) => {
+              const active = activeTab === tab;
+              return (
+                <button
+                  key={tab}
+                  onClick={() => handleTabChange(tab)}
+                  className="px-4 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200 cursor-pointer"
+                  style={{
+                    background: active ? "var(--primary)" : "transparent",
+                    color: active ? "white" : "oklch(0.6 0.06 260)",
+                    boxShadow: active ? "0 2px 8px var(--primary-glow)" : "none",
+                  }}
+                >
+                  {tab === "matchup" ? "Matchup" : "Entwicklung"}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Idle */}
         {state.status === "idle" && (
           <div className="flex flex-col items-center text-center py-10 gap-6 animate-fade-in-up">
@@ -137,7 +197,7 @@ export default function Page() {
           </div>
         )}
 
-        {/* Loading */}
+        {/* Loading (matchup) */}
         {state.status === "loading" && (
           <div className="flex flex-col items-center gap-5 py-16 animate-fade-in" aria-live="polite" aria-busy="true">
             <div className="pokeball">
@@ -147,7 +207,7 @@ export default function Page() {
             </div>
             <div className="text-center">
               <p className="text-foreground/80 font-medium">Lade Daten…</p>
-              <p className="text-muted-foreground text-xs mt-1">Verbinde mit PokéAPI</p>
+              <p className="text-muted-foreground text-xs mt-1">Verbinde mit API</p>
             </div>
           </div>
         )}
@@ -177,8 +237,58 @@ export default function Page() {
           </div>
         )}
 
-        {/* Result */}
-        {state.status === "success" && <PokemonCard data={state.data} />}
+        {/* Matchup tab */}
+        {state.status === "success" && activeTab === "matchup" && (
+          <PokemonCard data={state.data} />
+        )}
+
+        {/* Evolution tab */}
+        {state.status === "success" && activeTab === "evolution" && (
+          <>
+            {evoState.status === "loading" && (
+              <div className="flex flex-col items-center gap-5 py-16 animate-fade-in" aria-live="polite" aria-busy="true">
+                <div className="pokeball">
+                  <div className="pokeball-top" />
+                  <div className="pokeball-mid" />
+                  <div className="pokeball-bot" />
+                </div>
+                <p className="text-foreground/80 font-medium text-sm">Lade Entwicklungskette…</p>
+              </div>
+            )}
+
+            {evoState.status === "error" && (
+              <div
+                className="rounded-2xl px-5 py-4 flex items-start gap-3.5 animate-fade-in-up"
+                style={{
+                  background: "oklch(0.55 0.22 15 / 0.07)",
+                  border: "1px solid oklch(0.55 0.22 15 / 0.22)",
+                }}
+                role="alert"
+              >
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                  style={{ background: "oklch(0.55 0.22 15 / 0.15)" }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.5" strokeLinecap="round">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-semibold text-sm" style={{ color: "oklch(0.72 0.2 15)" }}>Fehler</p>
+                  <p className="text-sm mt-0.5" style={{ color: "oklch(0.65 0.15 15)" }}>{evoState.message}</p>
+                </div>
+              </div>
+            )}
+
+            {evoState.status === "success" && (
+              <EvolutionCard
+                data={evoState.data}
+                currentId={state.data.pokemonId ?? 0}
+                onSelect={(nameEN) => handleSearch(nameEN, currentGen)}
+              />
+            )}
+          </>
+        )}
       </main>
 
       {/* ── Footer ───────────────────────────────────────────────── */}

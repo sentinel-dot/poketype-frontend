@@ -1,3 +1,14 @@
+export interface EvoNode {
+  id:        number;
+  name:      string;
+  nameEN:    string;
+  evolvesTo: { method: string; node: EvoNode }[];
+}
+
+export interface EvolutionResponse {
+  chain: EvoNode;
+}
+
 export interface MatchupResponse {
   pokemon: string;
   pokemonId?: number;

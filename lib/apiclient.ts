@@ -44,6 +44,28 @@ export async function fetchMatchup(name: string, gen: number) {
   return body;
 }
 
+export async function fetchEvolution(name: string) {
+  const url = `${getApiBase()}/pokemon/${encodeURIComponent(name)}/evolution`;
+
+  let response: Response;
+  try {
+    response = await fetch(url);
+  } catch (err) {
+    if (isNetworkError(err)) throw new Error(NETWORK_ERROR_MESSAGE);
+    throw err;
+  }
+
+  const body = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const message =
+      typeof body?.error === "string" ? body.error : `HTTP ${response.status}`;
+    throw new ApiError(response.status, message);
+  }
+
+  return body;
+}
+
 export function getArtworkUrl(pokemonId: number): string {
   return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokemonId}.png`;
 }
