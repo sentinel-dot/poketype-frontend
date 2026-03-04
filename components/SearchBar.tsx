@@ -18,6 +18,7 @@ export default function SearchBar({ onSearch, loading }: Props) {
   const [suggestions, setSuggestions] = useState<PokemonSuggestion[]>([]);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showGenDropdown, setShowGenDropdown] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -49,6 +50,7 @@ export default function SearchBar({ onSearch, loading }: Props) {
     function handleClick(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setShowSuggestions(false);
+        setShowGenDropdown(false);
       }
     }
     document.addEventListener("mousedown", handleClick);
@@ -125,7 +127,8 @@ export default function SearchBar({ onSearch, loading }: Props) {
             type="search"
             className="flex-1 min-w-0 bg-transparent text-foreground py-2.5 pr-2
                        placeholder:text-muted-foreground/50 focus:outline-none
-                       disabled:opacity-40 text-base font-medium"
+                       disabled:opacity-40 text-base font-medium
+                       [&::-webkit-search-cancel-button]:hidden"
             placeholder="Pokémon-Name eingeben…"
             value={name}
             onChange={(e) => {
@@ -147,26 +150,52 @@ export default function SearchBar({ onSearch, loading }: Props) {
             disabled={loading}
           />
 
+          {/* Clear button */}
+          {name && (
+            <button
+              type="button"
+              onClick={() => {
+                setName("");
+                setQuery("");
+                setSuggestions([]);
+                setShowSuggestions(false);
+                inputRef.current?.focus();
+              }}
+              className="flex-shrink-0 self-center flex items-center justify-center w-5 h-5 rounded-full cursor-pointer"
+              style={{ color: "oklch(0.6 0 0)" }}
+              aria-label="Eingabe löschen"
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+
           {/* Divider */}
           <div className="flex-shrink-0 flex items-center">
             <div className="h-7 w-px mx-1 bg-border" />
-            <select
-              className="bg-transparent text-muted-foreground pr-2 pl-1 py-1 focus:outline-none
-                         disabled:opacity-40 cursor-pointer text-sm font-semibold appearance-none
-                         hover:text-foreground transition-colors"
-              value={gen}
-              onChange={(e) => setGen(Number(e.target.value))}
-              aria-label="Generation"
-              disabled={loading}
-              style={{ minWidth: "54px" }}
-            >
-              {GENS.map((g) => (
-                <option key={g} value={g} style={{ background: "#0d1a35", color: "#f1f5f9" }}>
-                  Gen {g}
-                </option>
-              ))}
-            </select>
           </div>
+
+          {/* Gen dropdown trigger */}
+          <button
+            type="button"
+            onClick={() => setShowGenDropdown(v => !v)}
+            disabled={loading}
+            className="flex-shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-lg
+                       text-sm font-semibold transition-colors disabled:opacity-40 cursor-pointer"
+            style={{ color: "oklch(0.75 0 0)" }}
+            aria-label="Generation wählen"
+          >
+            <span>Gen {gen}</span>
+            <svg
+              width="12" height="12" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+              className="transition-transform duration-200"
+              style={{ transform: showGenDropdown ? "rotate(180deg)" : "rotate(0deg)" }}
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
 
           {/* Submit */}
           <button
@@ -202,6 +231,44 @@ export default function SearchBar({ onSearch, loading }: Props) {
           <span className="text-muted-foreground">Mewtwo</span>
         </p>
       </form>
+
+      {/* Gen dropdown */}
+      {showGenDropdown && (
+        <div
+          className="absolute right-0 mt-1 rounded-xl overflow-hidden z-50 py-1"
+          style={{
+            background: "oklch(0.12 0.02 240 / 0.97)",
+            border: "1px solid oklch(0.95 0 0 / 0.1)",
+            boxShadow: "0 8px 32px oklch(0 0 0 / 0.5)",
+            backdropFilter: "blur(12px)",
+            minWidth: "100px",
+          }}
+        >
+          {GENS.map((g) => (
+            <button
+              key={g}
+              type="button"
+              onClick={() => {
+                setGen(g);
+                setShowGenDropdown(false);
+              }}
+              className="w-full flex items-center justify-between gap-4 px-4 py-2 text-sm
+                         font-semibold cursor-pointer transition-colors"
+              style={{
+                background: g === gen ? "oklch(0.95 0 0 / 0.06)" : "transparent",
+                color: g === gen ? "oklch(0.95 0 0)" : "oklch(0.65 0 0)",
+              }}
+            >
+              <span>Gen {g}</span>
+              {g === gen && (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Autocomplete dropdown */}
       {showSuggestions && (
