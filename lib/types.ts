@@ -11,7 +11,7 @@ export interface EvolutionResponse {
 
 export interface MatchupResponse {
   pokemon: string;
-  pokemonId?: number;
+  pokemonId: number;
   generation: number;
   types: string[];
   matchup: {

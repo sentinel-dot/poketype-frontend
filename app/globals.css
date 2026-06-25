@@ -2,6 +2,7 @@
 @import 'tw-animate-css';
 
 :root {
+  color-scheme: dark;
   /* Pokétype – Dark Space Theme */
   --background:        oklch(0.09 0.035 260);
   --foreground:        oklch(0.97 0.005 250);

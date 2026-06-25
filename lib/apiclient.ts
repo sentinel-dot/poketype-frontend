@@ -1,6 +1,4 @@
-function getApiBase(): string {
-  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
-}
+import { getApiBase } from "./config";
 
 export const NETWORK_ERROR_MESSAGE =
   "Die Verbindung zum Server ist fehlgeschlagen. Bitte prüfe deine Internetverbindung.";
@@ -76,9 +74,11 @@ export interface PokemonSuggestion {
   nameEN: string | null;
 }
 
-export async function fetchSuggestions(query: string): Promise<PokemonSuggestion[]> {
+export async function fetchSuggestions(query: string, maxNationalDex?: number | null): Promise<PokemonSuggestion[]> {
   if (query.length < 3) return [];
-  const url = `${getApiBase()}/pokemon/search?q=${encodeURIComponent(query)}`;
+  const params = new URLSearchParams({ q: query });
+  if (maxNationalDex != null) params.set("maxNationalDex", String(maxNationalDex));
+  const url = `${getApiBase()}/pokemon/search?${params}`;
   try {
     const res = await fetch(url);
     if (!res.ok) return [];

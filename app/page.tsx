@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { fetchMatchup, fetchEvolution, ApiError } from "@/lib/apiclient";
 import type { MatchupResponse, EvolutionResponse } from "@/lib/types";
 import SearchBar from "@/components/SearchBar";
@@ -111,15 +112,35 @@ export default function Page() {
             </div>
           </div>
 
-          <div
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-muted-foreground"
-            style={{ background: "var(--subtle)", border: "1px solid var(--subtle-foreground)" }}
-          >
-            <span
-              className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"
-              style={{ boxShadow: "0 0 6px oklch(0.75 0.18 150 / 0.8)" }}
-            />
-            Gen I – IX
+          <div className="flex items-center gap-3">
+            <Link
+              href="/soullink/create"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors"
+              style={{
+                background: "oklch(0.55 0.22 15 / 0.12)",
+                border: "1px solid oklch(0.55 0.22 15 / 0.35)",
+                color: "oklch(0.75 0.18 15)",
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+              SoulLink
+            </Link>
+
+            <div
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-muted-foreground"
+              style={{ background: "var(--subtle)", border: "1px solid var(--subtle-foreground)" }}
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"
+                style={{ boxShadow: "0 0 6px oklch(0.75 0.18 150 / 0.8)" }}
+              />
+              Gen I – IX
+            </div>
           </div>
         </div>
       </header>
