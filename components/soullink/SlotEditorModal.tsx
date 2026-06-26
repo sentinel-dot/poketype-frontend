@@ -42,9 +42,15 @@ export default function SlotEditorModal({
   const [status, setStatus] = useState<SlotStatus>(
     slot.status === "empty" ? "alive" : slot.status
   );
+  const [poolError, setPoolError] = useState<string | null>(null);
 
   function handleSave() {
     if (!selectedPokemon || !socket) return;
+    if (maxDex != null && selectedPokemon.id > maxDex) {
+      setPoolError(`Dieses Pokémon ist nicht im Pool dieser Room (bis #${maxDex}).`);
+      return;
+    }
+    setPoolError(null);
     const lvl = level ? parseInt(level, 10) : null;
     if (lvl !== null && (isNaN(lvl) || lvl < 1 || lvl > 100)) return;
     socket.emit("team-slot:update", {
@@ -136,9 +142,14 @@ export default function SlotEditorModal({
             </label>
             <PokemonSearchInput
               value={selectedPokemon}
-              onChange={setSelectedPokemon}
-              maxNationalDex={maxDex}
+              onChange={(pokemon) => {
+                setSelectedPokemon(pokemon);
+                setPoolError(null);
+              }}
             />
+            {poolError && (
+              <p className="text-xs text-red-400/90">{poolError}</p>
+            )}
           </div>
 
           {/* Nickname + Level row */}

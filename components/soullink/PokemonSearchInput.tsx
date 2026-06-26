@@ -6,7 +6,6 @@ import { fetchSuggestions, getPixelSpriteUrl, type PokemonSuggestion } from "@/l
 interface PokemonSearchInputProps {
   value: PokemonSuggestion | null;
   onChange: (result: PokemonSuggestion | null) => void;
-  maxNationalDex?: number | null;
   placeholder?: string;
 }
 
@@ -20,7 +19,6 @@ const dropdownStyle = {
 export default function PokemonSearchInput({
   value,
   onChange,
-  maxNationalDex,
   placeholder = "Pokémon suchen…",
 }: PokemonSearchInputProps) {
   const [name, setName] = useState(value ? (value.nameDE ?? value.nameEN ?? "") : "");
@@ -32,7 +30,9 @@ export default function PokemonSearchInput({
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!value) setName("");
+    if (value) {
+      setName(value.nameDE ?? value.nameEN ?? "");
+    }
   }, [value]);
 
   useEffect(() => {
@@ -46,17 +46,15 @@ export default function PokemonSearchInput({
 
     debounceRef.current = setTimeout(async () => {
       const results = await fetchSuggestions(query.trim());
-      const filtered =
-        maxNationalDex != null ? results.filter((r) => r.id <= maxNationalDex) : results;
-      setSuggestions(filtered);
+      setSuggestions(results);
       setActiveIndex(-1);
-      setShowSuggestions(filtered.length > 0);
+      setShowSuggestions(results.length > 0);
     }, 300);
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, maxNationalDex]);
+  }, [query]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -101,7 +99,7 @@ export default function PokemonSearchInput({
         onChange={(e) => {
           setName(e.target.value);
           setQuery(e.target.value);
-          onChange(null);
+          if (value) onChange(null);
         }}
         onKeyDown={handleKeyDown}
         onFocus={() => {
