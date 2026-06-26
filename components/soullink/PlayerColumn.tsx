@@ -65,7 +65,7 @@ export default function PlayerColumn({ seat, mySeatId }: PlayerColumnProps) {
 
       {/* Team bar */}
       <div
-        className="h-12 shrink-0"
+        className="h-16 shrink-0"
         style={{ borderBottom: "1px solid oklch(0.95 0 0 / 0.07)" }}
       >
         <EditableTeamBar seatId={seat.id} slots={seat.teamSlots} isOwn={isOwn} />

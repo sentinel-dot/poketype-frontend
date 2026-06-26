@@ -1,17 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import type { SoulLinkTeamSlot, SlotStatus } from "@/lib/soullinkTypes";
 import { POOL_TO_MAX_DEX } from "@/lib/soullinkTypes";
 import { useRoomStore } from "@/lib/soullinkStore";
+import type { PokemonSuggestion } from "@/lib/apiclient";
+import { getAnimatedSpriteUrl, getPixelSpriteUrl } from "@/lib/apiclient";
 import PokemonSearchInput from "./PokemonSearchInput";
-
-interface SearchResult {
-  id: number;
-  nameDE: string | null;
-  nameEN: string | null;
-}
 
 interface SlotEditorModalProps {
   seatId: string;
@@ -36,7 +32,7 @@ export default function SlotEditorModal({
 
   const maxDex = room ? POOL_TO_MAX_DEX[room.pokemonPool] : null;
 
-  const [selectedPokemon, setSelectedPokemon] = useState<SearchResult | null>(
+  const [selectedPokemon, setSelectedPokemon] = useState<PokemonSuggestion | null>(
     slot.pokemonId
       ? { id: slot.pokemonId, nameDE: slot.pokemonName ?? null, nameEN: null }
       : null
@@ -71,8 +67,16 @@ export default function SlotEditorModal({
     onClose();
   }
 
+  const [spriteFallback, setSpriteFallback] = useState(false);
+
+  useEffect(() => {
+    setSpriteFallback(false);
+  }, [selectedPokemon?.id]);
+
   const spriteUrl = selectedPokemon
-    ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${selectedPokemon.id}.png`
+    ? spriteFallback
+      ? getPixelSpriteUrl(selectedPokemon.id)
+      : getAnimatedSpriteUrl(selectedPokemon.id)
     : null;
 
   return (
@@ -98,7 +102,9 @@ export default function SlotEditorModal({
                 <img
                   src={spriteUrl}
                   alt={selectedPokemon?.nameDE ?? ""}
+                  onError={() => setSpriteFallback(true)}
                   className="h-10 w-10 object-contain"
+                  style={{ imageRendering: "pixelated" }}
                 />
               </>
             )}

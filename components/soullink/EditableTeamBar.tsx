@@ -33,7 +33,7 @@ export default function EditableTeamBar({ seatId, slots, isOwn }: EditableTeamBa
 
   return (
     <>
-      <div className="grid h-full grid-cols-6 gap-1 px-2 py-1">
+      <div className="grid h-full grid-cols-6 gap-1.5 px-2 py-1.5">
         {normalized.map((slot) => (
           <TeamSlotButton
             key={slot.slot}

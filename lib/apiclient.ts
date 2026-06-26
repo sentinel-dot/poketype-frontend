@@ -68,6 +68,14 @@ export function getArtworkUrl(pokemonId: number): string {
   return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokemonId}.png`;
 }
 
+export function getPixelSpriteUrl(pokemonId: number): string {
+  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemonId}.png`;
+}
+
+export function getAnimatedSpriteUrl(pokemonId: number): string {
+  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/animated/${pokemonId}.gif`;
+}
+
 export interface PokemonSuggestion {
   id: number;
   nameDE: string | null;

@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import { getAnimatedSpriteUrl, getPixelSpriteUrl } from "@/lib/apiclient";
 import type { SoulLinkTeamSlot } from "@/lib/soullinkTypes";
 
 interface TeamSlotButtonProps {
@@ -9,10 +11,18 @@ interface TeamSlotButtonProps {
 }
 
 export default function TeamSlotButton({ slot, onClick, isOwn }: TeamSlotButtonProps) {
+  const [useFallbackSprite, setUseFallbackSprite] = useState(false);
+
+  useEffect(() => {
+    setUseFallbackSprite(false);
+  }, [slot.pokemonId]);
+
   const isEmpty = slot.status === "empty";
   const isDead = slot.status === "dead";
   const spriteUrl = slot.pokemonId
-    ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${slot.pokemonId}.png`
+    ? useFallbackSprite
+      ? getPixelSpriteUrl(slot.pokemonId)
+      : getAnimatedSpriteUrl(slot.pokemonId)
     : null;
 
   return (
@@ -24,7 +34,7 @@ export default function TeamSlotButton({ slot, onClick, isOwn }: TeamSlotButtonP
           ? `Slot ${slot.slot} leer`
           : `${slot.pokemonName ?? "Pokémon"} in Slot ${slot.slot}`
       }
-      className="relative flex min-w-0 items-center justify-center rounded-lg transition-all duration-150"
+      className="relative flex min-h-0 min-w-0 items-center justify-center rounded-lg transition-all duration-150"
       style={{
         background: isEmpty
           ? "oklch(0.95 0 0 / 0.03)"
@@ -42,7 +52,7 @@ export default function TeamSlotButton({ slot, onClick, isOwn }: TeamSlotButtonP
       }}
     >
       {isEmpty ? (
-        <span className="text-sm font-bold" style={{ color: "oklch(0.95 0 0 / 0.18)" }}>
+        <span className="text-base font-bold" style={{ color: "oklch(0.95 0 0 / 0.18)" }}>
           {isOwn ? "+" : "·"}
         </span>
       ) : (
@@ -51,24 +61,18 @@ export default function TeamSlotButton({ slot, onClick, isOwn }: TeamSlotButtonP
           <img
             src={spriteUrl!}
             alt={slot.pokemonName ?? ""}
-            className={`h-8 w-8 object-contain transition-all ${
-              isDead ? "grayscale opacity-30" : "drop-shadow-sm"
+            onError={() => setUseFallbackSprite(true)}
+            className={`h-11 w-11 object-contain transition-all ${
+              isDead ? "grayscale opacity-40" : "drop-shadow-sm"
             }`}
+            style={{ imageRendering: "pixelated" }}
           />
           {slot.level != null && (
             <span
-              className="absolute bottom-0 right-0.5 text-[8px] font-black leading-none"
+              className="absolute bottom-0.5 right-1 text-[9px] font-black leading-none"
               style={{ color: "oklch(0.65 0 0)" }}
             >
               {slot.level}
-            </span>
-          )}
-          {isDead && (
-            <span
-              className="absolute inset-0 flex items-center justify-center text-xs font-black"
-              style={{ color: "oklch(0.65 0.2 15)" }}
-            >
-              ✕
             </span>
           )}
         </>
