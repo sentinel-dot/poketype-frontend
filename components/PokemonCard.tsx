@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { getArtworkUrl } from "@/lib/apiclient";
 import type { MatchupResponse, Multiplier } from "@/lib/types";
-import { TYPE_COLORS, hexToRgb } from "@/lib/types";
+import { getTypeGradient, getTypeRgb } from "@/lib/types";
 import TypeChip from "@/components/TypeChip";
 import MatchupSection from "@/components/MatchupSection";
 
@@ -17,31 +17,13 @@ export default function PokemonCard({ data }: Props) {
   const [imgError, setImgError] = useState(false);
   const artworkUrl = data.pokemonId && !imgError ? getArtworkUrl(data.pokemonId) : null;
 
-  // Type-based gradient for the card header
-  const primaryHex = TYPE_COLORS[data.types[0]?.toLowerCase()] ?? "#1a2744";
-  const secondaryHex = data.types[1]
-    ? (TYPE_COLORS[data.types[1].toLowerCase()] ?? primaryHex)
-    : primaryHex;
-
-  const pc = hexToRgb(primaryHex);
-  const sc = hexToRgb(secondaryHex);
-
-  const headerGradient =
-    data.types.length > 1
-      ? `linear-gradient(135deg, rgba(${pc.r},${pc.g},${pc.b},0.35) 0%, rgba(${sc.r},${sc.g},${sc.b},0.25) 100%)`
-      : `linear-gradient(135deg, rgba(${pc.r},${pc.g},${pc.b},0.35) 0%, rgba(${pc.r},${pc.g},${pc.b},0.12) 100%)`;
+  const headerGradient = getTypeGradient(data.types);
+  const [pc, sc] = getTypeRgb(data.types);
 
   const totalTypes = (Object.values(data.matchup) as string[][]).flat().length;
 
   return (
-    <article
-      className="rounded-2xl overflow-hidden animate-fade-in-up"
-      style={{
-        background: "oklch(0.95 0 0 / 0.034)",
-        border: "1px solid oklch(0.95 0 0 / 0.08)",
-        boxShadow: "0 32px 64px oklch(0 0 0 / 0.45), inset 0 1px 0 oklch(0.95 0 0 / 0.07)",
-      }}
-    >
+    <article className="glass-card overflow-hidden animate-fade-in-up">
       {/* ── Header ──────────────────────────────────────────────── */}
       <div
         className="relative p-5 sm:p-6 overflow-hidden"

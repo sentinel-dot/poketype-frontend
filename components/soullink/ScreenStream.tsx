@@ -9,6 +9,7 @@ import {
 } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import { getMediaErrorMessage } from "@/lib/mediaError";
+import { isTrackStreaming } from "@/lib/livekitUtils";
 import {
   StreamStartCTA,
   StreamStopChip,
@@ -17,10 +18,7 @@ import {
 } from "./StreamControlOverlay";
 
 const Placeholder = () => (
-  <div
-    className="flex h-full flex-col items-center justify-center gap-2"
-    style={{ background: "oklch(0.07 0.01 260)" }}
-  >
+  <div className="stream-placeholder flex h-full flex-col items-center justify-center gap-2">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.2">
       <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
       <line x1="8" y1="21" x2="16" y2="21" />
@@ -38,14 +36,21 @@ function ScreenStreamLive({
   isOwn: boolean;
 }) {
   const [mediaError, setMediaError] = useState<string | null>(null);
+  const [isStarting, setIsStarting] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
   const tracks = useTracks([{ source: Track.Source.ScreenShare, withPlaceholder: false }]);
   const track = tracks.find(
     (t) => t.participant.identity === seatId && t.publication !== undefined
   );
-  const { localParticipant } = useLocalParticipant();
+  const { localParticipant, isScreenShareEnabled } = useLocalParticipant();
+
+  const isStreaming =
+    isTrackStreaming(track) && (!isOwn || isScreenShareEnabled);
 
   async function startScreenShare() {
+    if (isStarting) return;
     setMediaError(null);
+    setIsStarting(true);
     try {
       await localParticipant.setScreenShareEnabled(true, undefined, {
         screenShareEncoding: { maxBitrate: 3_000_000, maxFramerate: 30 },
@@ -53,10 +58,26 @@ function ScreenStreamLive({
     } catch (err) {
       console.warn("ScreenStream: setScreenShareEnabled failed", err);
       setMediaError(getMediaErrorMessage(err, "screen"));
+    } finally {
+      setIsStarting(false);
     }
   }
 
-  if (track?.publication) {
+  async function stopScreenShare() {
+    if (isStopping) return;
+    setIsStopping(true);
+    try {
+      await localParticipant.setScreenShareEnabled(false);
+      setMediaError(null);
+    } catch (err) {
+      console.warn("ScreenStream: setScreenShareEnabled(false) failed", err);
+      setMediaError(getMediaErrorMessage(err, "screen"));
+    } finally {
+      setIsStopping(false);
+    }
+  }
+
+  if (isStreaming && track?.publication) {
     return (
       <div className="relative h-full w-full">
         <VideoTrack trackRef={track} className="h-full w-full object-contain" />
@@ -65,7 +86,9 @@ function ScreenStreamLive({
             <StreamStopChip
               label="Stream beenden"
               accent="blue"
-              onClick={() => localParticipant.setScreenShareEnabled(false)}
+              loading={isStopping}
+              disabled={isStopping}
+              onClick={stopScreenShare}
             />
           </div>
         )}
@@ -75,10 +98,7 @@ function ScreenStreamLive({
 
   if (isOwn) {
     return (
-      <div
-        className="flex h-full items-center justify-center"
-        style={{ background: "oklch(0.07 0.01 260)" }}
-      >
+      <div className="stream-placeholder flex h-full items-center justify-center">
         {mediaError ? (
           <StreamPermissionError message={mediaError} onRetry={startScreenShare} />
         ) : (
@@ -87,6 +107,8 @@ function ScreenStreamLive({
             accent="blue"
             label="Bildschirm teilen"
             sublabel="Spiel oder Emulator übertragen"
+            loading={isStarting}
+            disabled={isStarting}
             onClick={startScreenShare}
           />
         )}
@@ -108,10 +130,7 @@ export default function ScreenStream({
 
   if (!room) {
     return (
-      <div
-        className="flex h-full items-center justify-center"
-        style={{ background: "oklch(0.07 0.01 260)" }}
-      >
+      <div className="stream-placeholder flex h-full items-center justify-center">
         {isOwn ? <StreamUnavailableHint /> : <Placeholder />}
       </div>
     );

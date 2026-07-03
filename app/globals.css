@@ -16,6 +16,15 @@
   --primary-hover:     oklch(0.50 0.22  15);
   --primary-foreground:oklch(0.99 0     0 );
   --primary-glow:      oklch(0.55 0.22  15 / 0.25);
+  --accent-green:      oklch(0.55 0.18 150);
+  --accent-blue:       oklch(0.55 0.22 250);
+  --player-1:          oklch(0.55 0.22  15 / 0.12);
+  --player-2:          oklch(0.55 0.18 250 / 0.12);
+  --player-3:          oklch(0.55 0.18 150 / 0.12);
+  --player-1-border:   oklch(0.55 0.22  15 / 0.28);
+  --player-2-border:   oklch(0.55 0.18 250 / 0.28);
+  --player-3-border:   oklch(0.55 0.18 150 / 0.28);
+  --stream-bg:         oklch(0.07 0.01 260);
   --radius: 0.75rem;
 }
 
@@ -46,7 +55,9 @@
   body {
     @apply bg-background text-foreground antialiased overflow-x-hidden;
     background-image:
-      radial-gradient(ellipse 120% 50% at 50% -10%, oklch(0.22 0.08 260 / 0.55) 0%, transparent 65%),
+      radial-gradient(ellipse 120% 55% at 50% -15%, oklch(0.28 0.10 260 / 0.65) 0%, transparent 65%),
+      radial-gradient(ellipse 45% 35% at 0% 80%, oklch(0.20 0.08 15 / 0.18) 0%, transparent 55%),
+      radial-gradient(ellipse 45% 35% at 100% 90%, oklch(0.18 0.07 150 / 0.15) 0%, transparent 55%),
       radial-gradient(ellipse 50% 40% at 100% 100%, oklch(0.15 0.06 260 / 0.25) 0%, transparent 60%);
     background-attachment: fixed;
   }
@@ -65,6 +76,67 @@
 }
 
 @layer utilities {
+  .glass-card {
+    background: oklch(0.11 0.03 260 / 0.92);
+    border: 1px solid oklch(0.95 0 0 / 0.09);
+    box-shadow: var(--shadow-card);
+    backdrop-filter: blur(12px);
+    border-radius: var(--radius-2xl);
+  }
+
+  .glass-panel {
+    background: oklch(0.10 0.025 260 / 0.75);
+    border: 1px solid oklch(0.95 0 0 / 0.08);
+    backdrop-filter: blur(8px);
+  }
+
+  .input-field {
+    @apply w-full rounded-xl border border-border bg-card px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 outline-none transition-all duration-200 focus:border-primary/40 focus:ring-2 focus:ring-primary/10;
+  }
+
+  .btn-primary {
+    @apply rounded-xl py-2.5 text-sm font-bold text-white transition-all duration-200 disabled:opacity-40 active:scale-[0.98];
+    background: linear-gradient(135deg, var(--primary), oklch(0.44 0.22 15));
+    box-shadow: 0 4px 14px var(--primary-glow);
+  }
+
+  .btn-primary:not(:disabled):hover {
+    filter: brightness(1.08);
+  }
+
+  .btn-ghost {
+    @apply rounded-xl px-3 py-2.5 text-xs font-semibold transition-all duration-200;
+    background: oklch(0.55 0.22 15 / 0.07);
+    border: 1px solid oklch(0.55 0.22 15 / 0.22);
+    color: oklch(0.72 0.16 15);
+  }
+
+  .btn-ghost:hover {
+    background: oklch(0.55 0.22 15 / 0.12);
+  }
+
+  .btn-destructive {
+    @apply rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all duration-200;
+    background: oklch(0.55 0.22 15 / 0.10);
+    border: 1px solid oklch(0.55 0.22 15 / 0.30);
+    color: oklch(0.75 0.16 15);
+  }
+
+  .badge-chip {
+    @apply shrink-0 rounded-lg px-2 py-0.5 text-xs font-medium;
+    background: oklch(0.95 0 0 / 0.06);
+    border: 1px solid oklch(0.95 0 0 / 0.09);
+    color: var(--muted-foreground);
+  }
+
+  .stream-placeholder {
+    background: var(--stream-bg);
+  }
+
+  .player-accent-1 { --player-accent: var(--player-1); --player-accent-border: var(--player-1-border); }
+  .player-accent-2 { --player-accent: var(--player-2); --player-accent-border: var(--player-2-border); }
+  .player-accent-3 { --player-accent: var(--player-3); --player-accent-border: var(--player-3-border); }
+
   /* Pokéball spinner */
   .pokeball {
     width: 52px;

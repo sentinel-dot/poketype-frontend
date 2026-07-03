@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { fetchMatchup, fetchEvolution, ApiError } from "@/lib/apiclient";
 import type { MatchupResponse, EvolutionResponse } from "@/lib/types";
+import { TYPE_COLORS, getContrastColor } from "@/lib/types";
 import SearchBar from "@/components/SearchBar";
 import PokemonCard from "@/components/PokemonCard";
 import EvolutionCard from "@/components/EvolutionCard";
@@ -22,7 +23,13 @@ type EvoState =
 
 type Tab = "matchup" | "evolution";
 
-const EXAMPLES = ["Glurak", "Pikachu", "Bisaflor", "Gengar", "Mewtwo"];
+const EXAMPLES: { name: string; type: string }[] = [
+  { name: "Glurak", type: "fire" },
+  { name: "Pikachu", type: "electric" },
+  { name: "Bisaflor", type: "grass" },
+  { name: "Gengar", type: "ghost" },
+  { name: "Mewtwo", type: "psychic" },
+];
 
 export default function Page() {
   const [state, setState] = useState<SearchState>({ status: "idle" });
@@ -79,18 +86,11 @@ export default function Page() {
   return (
     <>
       {/* ── Header ───────────────────────────────────────────────── */}
-      <header
-        className="sticky top-0 z-20 border-b border-border"
-        style={{
-          background: "oklch(0.09 0.035 260 / 0.85)",
-          backdropFilter: "blur(20px) saturate(1.5)",
-          WebkitBackdropFilter: "blur(20px) saturate(1.5)",
-        }}
-      >
-        <div className="max-w-2xl mx-auto px-5 py-4 flex items-center justify-between gap-4">
+      <header className="glass-panel sticky top-0 z-20 border-b border-border">
+        <div className="mx-auto flex max-w-2xl items-center justify-between gap-4 px-5 py-4">
           <div className="flex items-center gap-3">
             <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
               style={{
                 background: "linear-gradient(135deg, var(--primary), oklch(0.44 0.22 15))",
                 boxShadow: "0 4px 14px var(--primary-glow)",
@@ -103,24 +103,19 @@ export default function Page() {
               </svg>
             </div>
             <div>
-              <h1 className="text-xl font-black tracking-tight leading-none text-foreground">
+              <h1 className="text-xl font-black leading-none tracking-tight text-foreground">
                 Pokétype
               </h1>
-              <p className="text-[11px] text-muted-foreground mt-0.5 font-medium tracking-widest uppercase">
+              <p className="mt-0.5 text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
                 Typ-Matchup Analyse
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Link
               href="/soullink/create"
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors"
-              style={{
-                background: "oklch(0.55 0.22 15 / 0.12)",
-                border: "1px solid oklch(0.55 0.22 15 / 0.35)",
-                color: "oklch(0.75 0.18 15)",
-              }}
+              className="btn-primary hidden items-center gap-1.5 px-3.5 py-2 text-xs sm:flex"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -131,12 +126,9 @@ export default function Page() {
               SoulLink
             </Link>
 
-            <div
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-muted-foreground"
-              style={{ background: "var(--subtle)", border: "1px solid var(--subtle-foreground)" }}
-            >
+            <div className="badge-chip hidden items-center gap-1.5 sm:flex">
               <span
-                className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"
+                className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400"
                 style={{ boxShadow: "0 0 6px oklch(0.75 0.18 150 / 0.8)" }}
               />
               Gen I – IX
@@ -151,21 +143,18 @@ export default function Page() {
 
         {/* Tabs (only when a pokemon is loaded) */}
         {showTabs && (
-          <div
-            className="flex gap-1 p-1 rounded-xl self-start"
-            style={{ background: "oklch(0.11 0.025 260 / 0.7)", border: "1px solid oklch(0.25 0.04 260 / 0.4)" }}
-          >
+          <div className="glass-panel flex gap-1 self-start rounded-xl p-1">
             {(["matchup", "evolution"] as Tab[]).map((tab) => {
               const active = activeTab === tab;
               return (
                 <button
                   key={tab}
                   onClick={() => handleTabChange(tab)}
-                  className="px-4 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200 cursor-pointer"
+                  className="cursor-pointer rounded-lg px-4 py-1.5 text-sm font-semibold transition-all duration-200"
                   style={{
                     background: active ? "var(--primary)" : "transparent",
                     color: active ? "white" : "oklch(0.6 0.06 260)",
-                    boxShadow: active ? "0 2px 8px var(--primary-glow)" : "none",
+                    boxShadow: active ? "0 2px 12px var(--primary-glow)" : "none",
                   }}
                 >
                   {tab === "matchup" ? "Matchup" : "Entwicklung"}
@@ -201,19 +190,24 @@ export default function Page() {
             </div>
 
             <div className="flex flex-wrap justify-center gap-2">
-              {EXAMPLES.map((ex) => (
-                <button
-                  key={ex}
-                  onClick={() => handleExample(ex)}
-                  className="px-3.5 py-1.5 rounded-full text-sm font-medium text-foreground/70 hover:text-foreground transition-colors cursor-pointer active:scale-95"
-                  style={{
-                    background: "var(--subtle)",
-                    border: "1px solid var(--subtle-foreground)",
-                  }}
-                >
-                  {ex}
-                </button>
-              ))}
+              {EXAMPLES.map((ex) => {
+                const bg = TYPE_COLORS[ex.type] ?? "#888";
+                const fg = getContrastColor(bg);
+                return (
+                  <button
+                    key={ex.name}
+                    onClick={() => handleExample(ex.name)}
+                    className="cursor-pointer rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all duration-150 hover:scale-105 active:scale-95"
+                    style={{
+                      background: bg,
+                      color: fg,
+                      boxShadow: `0 2px 10px ${bg}44, inset 0 1px 0 oklch(1 0 0 / 0.15)`,
+                    }}
+                  >
+                    {ex.name}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -236,11 +230,7 @@ export default function Page() {
         {/* Error */}
         {state.status === "error" && (
           <div
-            className="rounded-2xl px-5 py-4 flex items-start gap-3.5 animate-fade-in-up"
-            style={{
-              background: "oklch(0.55 0.22 15 / 0.07)",
-              border: "1px solid oklch(0.55 0.22 15 / 0.22)",
-            }}
+            className="glass-card flex animate-fade-in-up items-start gap-3.5 border border-primary/22 bg-primary/7 px-5 py-4"
             role="alert"
           >
             <div
@@ -279,11 +269,7 @@ export default function Page() {
 
             {evoState.status === "error" && (
               <div
-                className="rounded-2xl px-5 py-4 flex items-start gap-3.5 animate-fade-in-up"
-                style={{
-                  background: "oklch(0.55 0.22 15 / 0.07)",
-                  border: "1px solid oklch(0.55 0.22 15 / 0.22)",
-                }}
+                className="glass-card flex animate-fade-in-up items-start gap-3.5 border border-primary/22 bg-primary/7 px-5 py-4"
                 role="alert"
               >
                 <div

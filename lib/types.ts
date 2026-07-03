@@ -82,3 +82,34 @@ export function hexToRgb(hex: string): { r: number; g: number; b: number } {
     ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) }
     : { r: 30, g: 60, b: 100 };
 }
+
+function typeHexes(types: string[]): [string, string] {
+  const primary = TYPE_COLORS[types[0]?.toLowerCase()] ?? "#1a2744";
+  const secondary = types[1]
+    ? (TYPE_COLORS[types[1].toLowerCase()] ?? primary)
+    : primary;
+  return [primary, secondary];
+}
+
+export function getTypeGradient(types: string[], opacity = 0.35): string {
+  if (types.length === 0) return "oklch(0.95 0 0 / 0.04)";
+  const [primaryHex, secondaryHex] = typeHexes(types);
+  const pc = hexToRgb(primaryHex);
+  const sc = hexToRgb(secondaryHex);
+  const endOpacity = types.length > 1 ? opacity * 0.72 : opacity * 0.34;
+  return types.length > 1
+    ? `linear-gradient(135deg, rgba(${pc.r},${pc.g},${pc.b},${opacity}) 0%, rgba(${sc.r},${sc.g},${sc.b},${endOpacity}) 100%)`
+    : `linear-gradient(135deg, rgba(${pc.r},${pc.g},${pc.b},${opacity}) 0%, rgba(${pc.r},${pc.g},${pc.b},${endOpacity}) 100%)`;
+}
+
+export function getTypeBorderColor(types: string[], opacity = 0.35): string {
+  if (types.length === 0) return "oklch(0.95 0 0 / 0.08)";
+  const [primaryHex] = typeHexes(types);
+  const { r, g, b } = hexToRgb(primaryHex);
+  return `rgba(${r},${g},${b},${opacity})`;
+}
+
+export function getTypeRgb(types: string[]): [{ r: number; g: number; b: number }, { r: number; g: number; b: number }] {
+  const [primaryHex, secondaryHex] = typeHexes(types);
+  return [hexToRgb(primaryHex), hexToRgb(secondaryHex)];
+}

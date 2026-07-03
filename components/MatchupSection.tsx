@@ -51,7 +51,7 @@ export default function MatchupSection({ multiplier, types, collapsible = false 
     >
       {/* Header row */}
       <div
-        className={`flex items-center gap-3 px-3.5 py-2.5 ${collapsible ? "cursor-pointer select-none" : ""}`}
+        className={`flex items-center gap-3 px-3.5 py-3 ${collapsible ? "cursor-pointer select-none" : ""}`}
         onClick={collapsible ? () => setExpanded((v) => !v) : undefined}
         role={collapsible ? "button" : undefined}
         aria-expanded={collapsible ? expanded : undefined}
@@ -95,7 +95,7 @@ export default function MatchupSection({ multiplier, types, collapsible = false 
       {/* Chips */}
       {expanded && (
         <div
-          className="px-3.5 pb-3 pt-0.5 flex flex-wrap gap-1.5"
+          className="px-3.5 pb-3.5 pt-1 flex flex-wrap gap-1.5"
           style={{ borderTop: `1px solid rgba(${rgb},0.10)` }}
         >
           {types.map((t) => (

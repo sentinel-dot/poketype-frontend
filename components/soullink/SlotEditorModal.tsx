@@ -6,6 +6,9 @@ import type { SoulLinkTeamSlot, SlotStatus } from "@/lib/soullinkTypes";
 import { useRoomStore } from "@/lib/soullinkStore";
 import type { PokemonSuggestion } from "@/lib/apiclient";
 import { getAnimatedSpriteUrl, getPixelSpriteUrl } from "@/lib/apiclient";
+import { prefetchPokemonTypes, usePokemonTypes } from "@/lib/pokemonTypeCache";
+import { getTypeGradient, getTypeBorderColor } from "@/lib/types";
+import TypeChip from "@/components/TypeChip";
 import PokemonSearchInput from "./PokemonSearchInput";
 
 interface SlotEditorModalProps {
@@ -14,9 +17,6 @@ interface SlotEditorModalProps {
   slot: SoulLinkTeamSlot;
   onClose: () => void;
 }
-
-const inputCls =
-  "w-full rounded-xl border border-border bg-card px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 outline-none transition-all duration-200 focus:border-primary/40 focus:ring-2 focus:ring-primary/10";
 
 export default function SlotEditorModal({
   seatId,
@@ -34,15 +34,26 @@ export default function SlotEditorModal({
       : null
   );
   const [nickname, setNickname] = useState(slot.nickname ?? "");
-  const [level, setLevel] = useState<string>(slot.level != null ? String(slot.level) : "");
   const [status, setStatus] = useState<SlotStatus>(
     slot.status === "empty" ? "alive" : slot.status
   );
 
+  const { types } = usePokemonTypes(
+    selectedPokemon?.id ?? null,
+    selectedPokemon?.nameDE ?? selectedPokemon?.nameEN ?? null
+  );
+
+  useEffect(() => {
+    if (selectedPokemon) {
+      prefetchPokemonTypes(
+        selectedPokemon.id,
+        selectedPokemon.nameDE ?? selectedPokemon.nameEN
+      );
+    }
+  }, [selectedPokemon]);
+
   function handleSave() {
     if (!selectedPokemon || !socket) return;
-    const lvl = level ? parseInt(level, 10) : null;
-    if (lvl !== null && (isNaN(lvl) || lvl < 1 || lvl > 100)) return;
     socket.emit("team-slot:update", {
       roomCode,
       seatId,
@@ -50,7 +61,6 @@ export default function SlotEditorModal({
       patch: {
         pokemonId: selectedPokemon.id,
         nickname: nickname.trim() || null,
-        level: lvl,
         status,
       },
     });
@@ -75,59 +85,73 @@ export default function SlotEditorModal({
       : getAnimatedSpriteUrl(selectedPokemon.id)
     : null;
 
+  const previewGradient =
+    types.length > 0 ? getTypeGradient(types, 0.35) : "oklch(0.95 0 0 / 0.04)";
+  const previewBorder =
+    types.length > 0 ? getTypeBorderColor(types, 0.45) : "oklch(0.95 0 0 / 0.08)";
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center px-4"
       style={{ background: "oklch(0 0 0 / 0.72)", backdropFilter: "blur(4px)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div
-        className="w-full max-w-sm rounded-2xl p-5"
-        style={{
-          background: "oklch(0.11 0.03 260 / 0.97)",
-          border: "1px solid oklch(0.95 0 0 / 0.1)",
-          boxShadow: "0 32px 64px oklch(0 0 0 / 0.55), inset 0 1px 0 oklch(0.95 0 0 / 0.06)",
-        }}
-      >
-        {/* Modal header */}
-        <div className="mb-5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {spriteUrl && (
-              <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={spriteUrl}
-                  alt={selectedPokemon?.nameDE ?? ""}
-                  onError={() => setSpriteFallback(true)}
-                  className="h-10 w-10 object-contain"
-                  style={{ imageRendering: "pixelated" }}
-                />
-              </>
-            )}
-            <h2 className="text-sm font-bold text-foreground">
-              Slot {slotNumber} bearbeiten
-            </h2>
+      <div className="glass-card w-full max-w-sm p-5 animate-fade-in-up">
+        {/* Modal header with type preview */}
+        <div
+          className="-mx-5 -mt-5 mb-5 rounded-t-2xl px-5 py-4 transition-all duration-300"
+          style={{
+            background: previewGradient,
+            borderBottom: `1px solid ${previewBorder}`,
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {spriteUrl && (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={spriteUrl}
+                    alt={selectedPokemon?.nameDE ?? ""}
+                    onError={() => setSpriteFallback(true)}
+                    className="h-12 w-12 object-contain drop-shadow-md"
+                    style={{ imageRendering: "pixelated" }}
+                  />
+                </>
+              )}
+              <div>
+                <h2 className="text-sm font-bold text-foreground">
+                  Slot {slotNumber} bearbeiten
+                </h2>
+                {types.length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {types.map((t) => (
+                      <TypeChip key={t} type={t} size="sm" />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors"
+              style={{
+                background: "oklch(0.95 0 0 / 0.08)",
+                border: "1px solid oklch(0.95 0 0 / 0.12)",
+                color: "oklch(0.5 0 0)",
+              }}
+              aria-label="Schließen"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors"
-            style={{
-              background: "oklch(0.95 0 0 / 0.05)",
-              border: "1px solid oklch(0.95 0 0 / 0.08)",
-              color: "oklch(0.5 0 0)",
-            }}
-            aria-label="Schließen"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <path d="M18 6 6 18M6 6l12 12" />
-            </svg>
-          </button>
         </div>
 
         <div className="flex flex-col gap-3.5">
-          {/* Pokémon search */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Pokémon
             </label>
             <PokemonSearchInput
@@ -136,41 +160,23 @@ export default function SlotEditorModal({
             />
           </div>
 
-          {/* Nickname + Level row */}
-          <div className="flex gap-2.5">
-            <div className="flex flex-col gap-1.5 flex-1">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Nickname <span className="text-muted-foreground/40 normal-case font-normal">(opt.)</span>
-              </label>
-              <input
-                type="text"
-                value={nickname}
-                onChange={(e) => setNickname(e.target.value)}
-                maxLength={50}
-                placeholder="z. B. Flammi"
-                className={inputCls}
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5 w-20">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Level
-              </label>
-              <input
-                type="number"
-                value={level}
-                onChange={(e) => setLevel(e.target.value)}
-                min={1}
-                max={100}
-                placeholder="1–100"
-                className={inputCls}
-              />
-            </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Nickname{" "}
+              <span className="font-normal normal-case text-muted-foreground/40">(opt.)</span>
+            </label>
+            <input
+              type="text"
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              maxLength={50}
+              placeholder="z. B. Flammi"
+              className="input-field"
+            />
           </div>
 
-          {/* Status toggle */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Status
             </label>
             <div className="flex gap-2">
@@ -209,30 +215,16 @@ export default function SlotEditorModal({
           </div>
         </div>
 
-        {/* Action buttons */}
         <div className="mt-5 flex gap-2">
           <button
             onClick={handleSave}
             disabled={!selectedPokemon || !socket}
-            className="flex-1 rounded-xl py-2.5 text-sm font-bold text-white transition-all duration-200 disabled:opacity-40 active:scale-[0.98]"
-            style={{
-              background: "linear-gradient(135deg, var(--primary), oklch(0.44 0.22 15))",
-              boxShadow:
-                selectedPokemon && socket ? "0 4px 14px var(--primary-glow)" : "none",
-            }}
+            className="btn-primary flex-1 disabled:shadow-none"
           >
             Speichern
           </button>
           {slot.status !== "empty" && (
-            <button
-              onClick={handleClear}
-              className="rounded-xl px-3 py-2.5 text-xs font-semibold transition-all duration-200"
-              style={{
-                background: "oklch(0.55 0.22 15 / 0.07)",
-                border: "1px solid oklch(0.55 0.22 15 / 0.22)",
-                color: "oklch(0.65 0.15 15)",
-              }}
-            >
+            <button onClick={handleClear} className="btn-ghost">
               Leeren
             </button>
           )}
@@ -241,4 +233,3 @@ export default function SlotEditorModal({
     </div>
   );
 }
-

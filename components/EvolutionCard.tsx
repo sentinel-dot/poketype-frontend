@@ -53,17 +53,15 @@ function PokemonTile({
     <button
       onClick={() => onSelect(node.nameEN)}
       title={node.name}
-      className="flex flex-col items-center gap-1.5 p-2.5 rounded-2xl transition-all duration-200 cursor-pointer active:scale-95"
+      className="flex flex-col items-center gap-1.5 rounded-2xl p-2.5 transition-all duration-200 cursor-pointer hover:brightness-110 active:scale-95"
       style={{
         background: isCurrent
-          ? "oklch(0.55 0.22 15 / 0.12)"
+          ? "oklch(0.55 0.22 15 / 0.14)"
           : "oklch(0.13 0.025 260 / 0.5)",
         border: isCurrent
           ? "1.5px solid oklch(0.55 0.22 15 / 0.45)"
-          : "1px solid oklch(0.3 0.04 260 / 0.4)",
-        boxShadow: isCurrent
-          ? "0 0 18px oklch(0.55 0.22 15 / 0.15)"
-          : "none",
+          : "1px solid oklch(0.95 0 0 / 0.08)",
+        boxShadow: isCurrent ? "0 0 18px var(--primary-glow)" : "none",
         minWidth: "76px",
       }}
     >
@@ -129,17 +127,8 @@ export default function EvolutionCard({ data, currentId, onSelect }: Props) {
     data.chain.evolvesTo.length === 0;
 
   return (
-    <div
-      className="rounded-2xl p-5 animate-fade-in-up"
-      style={{
-        background: "oklch(0.11 0.025 260 / 0.6)",
-        border: "1px solid oklch(0.25 0.04 260 / 0.5)",
-      }}
-    >
-      <p
-        className="text-xs font-semibold uppercase tracking-widest mb-4"
-        style={{ color: "oklch(0.55 0.12 260)" }}
-      >
+    <div className="glass-card animate-fade-in-up p-5">
+      <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
         Entwicklungskette
       </p>
 
