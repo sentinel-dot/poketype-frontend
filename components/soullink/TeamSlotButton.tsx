@@ -25,6 +25,8 @@ export default function TeamSlotButton({ slot, onClick, isOwn }: TeamSlotButtonP
 
   const isEmpty = slot.status === "empty";
   const isDead = slot.status === "dead";
+  // Gefüllte Slots sind für jeden anklickbar (Detail-Ansicht); leere nur für den Besitzer.
+  const isClickable = isOwn || !isEmpty;
   const displayName = slot.nickname ?? slot.pokemonName;
   const spriteUrl = slot.pokemonId
     ? useFallbackSprite
@@ -52,20 +54,20 @@ export default function TeamSlotButton({ slot, onClick, isOwn }: TeamSlotButtonP
 
   return (
     <button
-      onClick={isOwn ? onClick : undefined}
-      disabled={!isOwn}
+      onClick={isClickable ? onClick : undefined}
+      disabled={!isClickable}
       aria-label={
         isEmpty
           ? `Slot ${slot.slot} leer`
           : `${slot.pokemonName ?? "Pokémon"} in Slot ${slot.slot}`
       }
       className={`relative flex min-h-0 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1 transition-all duration-200 ${
-        isOwn && !isEmpty ? "hover:brightness-110 hover:scale-[1.02]" : ""
+        isClickable && !isEmpty ? "hover:brightness-110 hover:scale-[1.02]" : ""
       } ${types.length > 0 && !isEmpty ? "animate-fade-in" : ""}`}
       style={{
         background,
         border: `1.5px solid ${borderColor}`,
-        cursor: isOwn ? "pointer" : "default",
+        cursor: isClickable ? "pointer" : "default",
         opacity: typesLoading && !isEmpty ? 0.85 : 1,
       }}
     >

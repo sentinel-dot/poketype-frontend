@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { SoulLinkTeamSlot } from "@/lib/soullinkTypes";
 import TeamSlotButton from "./TeamSlotButton";
 import SlotEditorModal from "./SlotEditorModal";
+import PokemonDetailModal from "./PokemonDetailModal";
 
 interface EditableTeamBarProps {
   seatId: string;
@@ -29,7 +30,20 @@ function normalizeSlots(slots: SoulLinkTeamSlot[]): SoulLinkTeamSlot[] {
 
 export default function EditableTeamBar({ seatId, slots, isOwn }: EditableTeamBarProps) {
   const [editingSlot, setEditingSlot] = useState<number | null>(null);
+  const [detailSlot, setDetailSlot] = useState<number | null>(null);
   const normalized = normalizeSlots(slots);
+
+  function handleSlotClick(slot: SoulLinkTeamSlot) {
+    if (slot.status !== "empty") {
+      // Gefüllter Slot (eigen oder fremd) → Detail-Ansicht.
+      setDetailSlot(slot.slot);
+    } else if (isOwn) {
+      // Leerer eigener Slot → direkt Pokémon hinzufügen.
+      setEditingSlot(slot.slot);
+    }
+  }
+
+  const detail = detailSlot !== null ? normalized[detailSlot - 1] : null;
 
   return (
     <>
@@ -39,10 +53,25 @@ export default function EditableTeamBar({ seatId, slots, isOwn }: EditableTeamBa
             key={slot.slot}
             slot={slot}
             isOwn={isOwn}
-            onClick={() => setEditingSlot(slot.slot)}
+            onClick={() => handleSlotClick(slot)}
           />
         ))}
       </div>
+
+      {detail && detail.pokemonName && (
+        <PokemonDetailModal
+          pokemonName={detail.pokemonName}
+          onEdit={
+            isOwn
+              ? () => {
+                  setEditingSlot(detail.slot);
+                  setDetailSlot(null);
+                }
+              : undefined
+          }
+          onClose={() => setDetailSlot(null)}
+        />
+      )}
 
       {editingSlot !== null && (
         <SlotEditorModal
