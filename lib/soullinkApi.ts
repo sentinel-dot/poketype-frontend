@@ -2,10 +2,13 @@ import type {
   CreateRoomResponse,
   JoinRoomResponse,
   RoomStateResponse,
-  PokemonPool,
+  Ruleset,
+  UsedSpecies,
+  EncounterOutcome,
 } from "./soullinkTypes";
 import { ApiError, isNetworkError, NETWORK_ERROR_MESSAGE } from "./apiclient";
 import { getApiBase } from "./config";
+import { authHeaders } from "./authApi";
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -27,16 +30,15 @@ async function handleResponse<T>(res: Response): Promise<T> {
 
 export interface CreateRoomPayload {
   name: string;
-  pokemonPool: PokemonPool;
   gameName?: string;
-  displayName: string;
+  displayName?: string;
 }
 
 export async function createRoom(payload: CreateRoomPayload): Promise<CreateRoomResponse> {
   try {
     const res = await fetch(`${getApiBase()}/soullink/rooms`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify(payload),
     });
     return handleResponse<CreateRoomResponse>(res);
@@ -58,12 +60,12 @@ export async function getRoom(roomCode: string): Promise<RoomStateResponse> {
 
 export async function joinRoom(
   roomCode: string,
-  displayName: string
+  displayName?: string
 ): Promise<JoinRoomResponse> {
   try {
     const res = await fetch(`${getApiBase()}/soullink/rooms/${roomCode}/join`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ displayName }),
     });
     return handleResponse<JoinRoomResponse>(res);
@@ -145,4 +147,113 @@ export async function getLiveKitToken(
     throw new Error("livekit_not_configured");
   }
   return handleResponse<LiveKitTokenResponse>(res);
+}
+
+// ---------------------------------------------------------------------------
+// Team / death counter / encounters (HTTP fallbacks — WS is primary)
+// ---------------------------------------------------------------------------
+
+export async function clearAllSlots(
+  roomCode: string,
+  seatId: string,
+  participantToken: string
+): Promise<void> {
+  await fetch(`${getApiBase()}/soullink/rooms/${roomCode}/seats/${seatId}/team`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ participantToken }),
+  });
+}
+
+export async function updateDeathCount(
+  roomCode: string,
+  seatId: string,
+  delta: 1 | -1,
+  participantToken: string
+): Promise<{ deathCount: number }> {
+  const res = await fetch(
+    `${getApiBase()}/soullink/rooms/${roomCode}/seats/${seatId}/deaths`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ delta, participantToken }),
+    }
+  );
+  return handleResponse<{ deathCount: number }>(res);
+}
+
+export async function addEncounter(
+  roomCode: string,
+  seatId: string,
+  pokemonId: number,
+  outcome: EncounterOutcome,
+  routeLabel: string | null,
+  participantToken: string
+): Promise<{ used: UsedSpecies }> {
+  const res = await fetch(`${getApiBase()}/soullink/rooms/${roomCode}/encounters`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ seatId, pokemonId, outcome, routeLabel, participantToken }),
+  });
+  return handleResponse<{ used: UsedSpecies }>(res);
+}
+
+export async function removeEncounter(
+  roomCode: string,
+  seatId: string,
+  familyKey: number,
+  participantToken: string
+): Promise<void> {
+  await fetch(`${getApiBase()}/soullink/rooms/${roomCode}/encounters/${familyKey}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ seatId, participantToken }),
+  });
+}
+
+const familyKeyCache = new Map<number, number>();
+
+/** Resolve a candidate's evolution-family key for client-side dupes checks (cached). */
+export async function getFamilyKey(pokemonId: number): Promise<number> {
+  const cached = familyKeyCache.get(pokemonId);
+  if (cached !== undefined) return cached;
+  try {
+    const res = await fetch(`${getApiBase()}/soullink/pokemon/${pokemonId}/family`);
+    const body = await res.json();
+    const key = typeof body?.familyKey === "number" ? body.familyKey : pokemonId;
+    familyKeyCache.set(pokemonId, key);
+    return key;
+  } catch {
+    return pokemonId;
+  }
+}
+
+export interface RoomSettingsPayload {
+  name?: string;
+  badges?: number;
+  levelCap?: number | null;
+  ruleset?: Partial<Ruleset>;
+  status?: "active" | "archived";
+}
+
+export async function updateRoomSettings(
+  roomCode: string,
+  payload: RoomSettingsPayload
+): Promise<void> {
+  const res = await fetch(`${getApiBase()}/soullink/rooms/${roomCode}/settings`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(payload),
+  });
+  await handleResponse(res);
+}
+
+/** Invite a friend to a room — sends them an on-site notification (auth required). */
+export async function inviteToRoom(roomCode: string, userId: string): Promise<void> {
+  const res = await fetch(`${getApiBase()}/soullink/rooms/${roomCode}/invite`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ userId }),
+  });
+  await handleResponse(res);
 }

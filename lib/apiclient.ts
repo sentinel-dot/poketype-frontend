@@ -64,16 +64,29 @@ export async function fetchEvolution(name: string) {
   return body;
 }
 
+// Sprites are served through jsDelivr's CDN (edge-cached, HTTP/2) instead of
+// raw.githubusercontent.com, which is uncached and slow — a key perf fix for
+// the SoulLink team bar.
+const SPRITE_CDN = "https://cdn.jsdelivr.net/gh/PokeAPI/sprites@master/sprites/pokemon";
+
 export function getArtworkUrl(pokemonId: number): string {
-  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokemonId}.png`;
+  return `${SPRITE_CDN}/other/official-artwork/${pokemonId}.png`;
 }
 
 export function getPixelSpriteUrl(pokemonId: number): string {
-  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemonId}.png`;
+  return `${SPRITE_CDN}/${pokemonId}.png`;
 }
 
 export function getAnimatedSpriteUrl(pokemonId: number): string {
-  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/animated/${pokemonId}.gif`;
+  return `${SPRITE_CDN}/versions/generation-v/black-white/animated/${pokemonId}.gif`;
+}
+
+export function getShinyAnimatedSpriteUrl(pokemonId: number): string {
+  return `${SPRITE_CDN}/versions/generation-v/black-white/animated/shiny/${pokemonId}.gif`;
+}
+
+export function getShinyPixelSpriteUrl(pokemonId: number): string {
+  return `${SPRITE_CDN}/shiny/${pokemonId}.png`;
 }
 
 export interface PokemonSuggestion {

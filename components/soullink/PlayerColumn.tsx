@@ -5,10 +5,13 @@ import EmptySeat from "./EmptySeat";
 import CameraFeed from "./CameraFeed";
 import ScreenStream from "./ScreenStream";
 import EditableTeamBar from "./EditableTeamBar";
+import DeathCounter from "./DeathCounter";
 
 interface PlayerColumnProps {
   seat: SoulLinkSeat;
   mySeatId: string | null;
+  levelCap?: number | null;
+  flashSlot?: number | null;
 }
 
 const PLAYER_ACCENT: Record<number, string> = {
@@ -17,7 +20,7 @@ const PLAYER_ACCENT: Record<number, string> = {
   3: "player-accent-3",
 };
 
-export default function PlayerColumn({ seat, mySeatId }: PlayerColumnProps) {
+export default function PlayerColumn({ seat, mySeatId, levelCap, flashSlot }: PlayerColumnProps) {
   if (seat.status === "empty") {
     return <EmptySeat position={seat.position} />;
   }
@@ -79,6 +82,7 @@ export default function PlayerColumn({ seat, mySeatId }: PlayerColumnProps) {
         className="relative flex-[2] min-h-0 overflow-hidden"
         style={{ borderBottom: "1px solid oklch(0.95 0 0 / 0.07)" }}
       >
+        <DeathCounter seatId={seat.id} isOwn={isOwn} />
         <CameraFeed seatId={seat.id} isOwn={isOwn} />
       </div>
 
@@ -90,7 +94,7 @@ export default function PlayerColumn({ seat, mySeatId }: PlayerColumnProps) {
           background: "oklch(0.08 0.015 260 / 0.6)",
         }}
       >
-        <EditableTeamBar seatId={seat.id} slots={seat.teamSlots} isOwn={isOwn} />
+        <EditableTeamBar seatId={seat.id} slots={seat.teamSlots} isOwn={isOwn} levelCap={levelCap} flashSlot={flashSlot} />
       </div>
 
       {/* Screen stream */}

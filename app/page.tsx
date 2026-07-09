@@ -8,6 +8,7 @@ import { TYPE_COLORS, getContrastColor } from "@/lib/types";
 import SearchBar from "@/components/SearchBar";
 import PokemonCard from "@/components/PokemonCard";
 import EvolutionCard from "@/components/EvolutionCard";
+import AccountBar from "@/components/AccountBar";
 
 type SearchState =
   | { status: "idle" }
@@ -126,13 +127,7 @@ export default function Page() {
               SoulLink
             </Link>
 
-            <div className="badge-chip hidden items-center gap-1.5 sm:flex">
-              <span
-                className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400"
-                style={{ boxShadow: "0 0 6px oklch(0.75 0.18 150 / 0.8)" }}
-              />
-              Gen I – IX
-            </div>
+            <AccountBar />
           </div>
         </div>
       </header>

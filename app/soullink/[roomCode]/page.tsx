@@ -1,14 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { LiveKitRoom } from "@livekit/components-react";
 import { getRoom, loadCredentials, clearCredentials, leaveRoom } from "@/lib/soullinkApi";
 import { useRoomStore } from "@/lib/soullinkStore";
-import { useRoomSocket } from "@/lib/hooks/useRoomSocket";
+import { useAuthStore } from "@/lib/authStore";
+import { useRoomSocket, type ConnectionState } from "@/lib/hooks/useRoomSocket";
 import { useLiveKit } from "@/lib/hooks/useLiveKit";
+import { toast } from "@/lib/toastStore";
 import PlayerColumn from "@/components/soullink/PlayerColumn";
-import { POOL_LABELS } from "@/lib/soullinkTypes";
+import GraveyardPanel from "@/components/soullink/GraveyardPanel";
+import RoomSettingsModal from "@/components/soullink/RoomSettingsModal";
+
+const CONNECTION_META: Record<ConnectionState, { label: string; color: string }> = {
+  connecting: { label: "Verbinde…", color: "oklch(0.75 0.15 90)" },
+  online: { label: "Online", color: "oklch(0.7 0.18 150)" },
+  reconnecting: { label: "Verbinde neu…", color: "oklch(0.75 0.15 90)" },
+  offline: { label: "Offline", color: "oklch(0.65 0.22 15)" },
+};
 
 export default function RoomPage() {
   const router = useRouter();
@@ -18,16 +28,31 @@ export default function RoomPage() {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [codeCopied, setCodeCopied] = useState(false);
+  const [flashSlot, setFlashSlot] = useState<number | null>(null);
+  const [showGraveyard, setShowGraveyard] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const room = useRoomStore((s) => s.room);
   const seats = useRoomStore((s) => s.seats);
+  const graveyard = useRoomStore((s) => s.graveyard);
   const myToken = useRoomStore((s) => s.myToken);
   const mySeatId = useRoomStore((s) => s.mySeatId);
   const setMyCredentials = useRoomStore((s) => s.setMyCredentials);
   const setRoomState = useRoomStore((s) => s.setRoomState);
   const reset = useRoomStore((s) => s.reset);
+  const authUser = useAuthStore((s) => s.user);
 
-  useRoomSocket(roomCode, myToken, setError);
+  const { connection } = useRoomSocket(roomCode, myToken, setError, {
+    onLinkedDeath: (slot) => {
+      setFlashSlot(slot);
+      toast.warning(`Verknüpfter Tod in Slot ${slot}! Partner-Pokémon ist gefallen.`);
+      if (flashTimer.current) clearTimeout(flashTimer.current);
+      flashTimer.current = setTimeout(() => setFlashSlot(null), 3500);
+    },
+    onSeatJoined: (name) => toast.info(`${name ?? "Ein Spieler"} ist beigetreten.`),
+    onSeatLeft: () => toast.info("Ein Spieler hat den Raum verlassen."),
+  });
   const liveKit = useLiveKit(roomCode, mySeatId, myToken);
 
   useEffect(() => {
@@ -89,17 +114,25 @@ export default function RoomPage() {
   }
 
   const sorted = [...seats].sort((a, b) => a.position - b.position);
+  const isOwner = !!(room.ownerUserId && authUser && room.ownerUserId === authUser.id);
+  const conn = CONNECTION_META[connection];
 
   const playerGrid = (
-    <div className="grid min-h-0 flex-1 grid-cols-3 gap-3">
+    <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto [grid-auto-rows:78vh] md:grid-cols-3 md:overflow-hidden md:[grid-auto-rows:auto]">
       {sorted.map((seat) => (
-        <PlayerColumn key={seat.id} seat={seat} mySeatId={mySeatId} />
+        <PlayerColumn
+          key={seat.id}
+          seat={seat}
+          mySeatId={mySeatId}
+          levelCap={room.levelCap}
+          flashSlot={flashSlot}
+        />
       ))}
     </div>
   );
 
   return (
-    <div className="flex h-screen w-screen flex-col gap-3 overflow-hidden p-3">
+    <div className="flex h-[100dvh] w-screen flex-col gap-3 overflow-hidden p-3">
       {/* Header */}
       <header className="glass-panel flex shrink-0 items-center justify-between gap-2 rounded-xl px-3 py-2.5">
         <div className="flex min-w-0 items-center gap-2.5">
@@ -116,7 +149,7 @@ export default function RoomPage() {
               <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
             </svg>
           </div>
-          <h1 className="max-w-[120px] truncate text-sm font-bold text-foreground sm:max-w-xs">
+          <h1 className="max-w-[110px] truncate text-sm font-bold text-foreground sm:max-w-xs">
             {room.name}
           </h1>
           <button
@@ -136,16 +169,6 @@ export default function RoomPage() {
           >
             {codeCopied ? "Kopiert ✓" : room.roomCode}
           </button>
-          <span
-            className="badge-chip hidden sm:block"
-            style={{
-              background: "oklch(0.55 0.22 250 / 0.10)",
-              borderColor: "oklch(0.55 0.22 250 / 0.25)",
-              color: "oklch(0.75 0.15 250)",
-            }}
-          >
-            {POOL_LABELS[room.pokemonPool]}
-          </span>
           {room.gameName && (
             <span
               className="badge-chip hidden md:block"
@@ -158,16 +181,73 @@ export default function RoomPage() {
               {room.gameName}
             </span>
           )}
+          {typeof room.badges === "number" && room.badges > 0 && (
+            <span className="badge-chip hidden md:block" title="Orden">
+              🎖 {room.badges}
+            </span>
+          )}
+          {room.levelCap != null && (
+            <span
+              className="badge-chip hidden md:block"
+              style={{
+                background: "oklch(0.65 0.2 60 / 0.10)",
+                borderColor: "oklch(0.65 0.2 60 / 0.25)",
+                color: "oklch(0.82 0.16 70)",
+              }}
+              title="Level-Cap"
+            >
+              Cap Lv{room.levelCap}
+            </span>
+          )}
         </div>
 
-        <button onClick={handleLeave} className="btn-destructive flex shrink-0 items-center gap-1.5">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-            <polyline points="16 17 21 12 16 7" />
-            <line x1="21" y1="12" x2="9" y2="12" />
-          </svg>
-          <span className="hidden sm:inline">Verlassen</span>
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          {/* Connection status */}
+          <span className="hidden items-center gap-1.5 text-xs font-semibold sm:flex" style={{ color: conn.color }}>
+            <span
+              className="h-2 w-2 rounded-full"
+              style={{
+                background: conn.color,
+                boxShadow: `0 0 6px ${conn.color}`,
+                animation: connection === "online" ? undefined : "pulse 1.4s ease-in-out infinite",
+              }}
+            />
+            {conn.label}
+          </span>
+
+          {/* Graveyard */}
+          <button
+            onClick={() => setShowGraveyard(true)}
+            title="Friedhof"
+            aria-label="Friedhof"
+            className="flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2 text-sm transition-colors hover:brightness-110"
+          >
+            🪦 <span className="text-xs font-bold text-muted-foreground">{graveyard.length}</span>
+          </button>
+
+          {isOwner && (
+            <button
+              onClick={() => setShowSettings(true)}
+              title="Einstellungen"
+              aria-label="Einstellungen"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card transition-colors hover:brightness-110"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            </button>
+          )}
+
+          <button onClick={handleLeave} className="btn-destructive flex items-center gap-1.5">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            <span className="hidden sm:inline">Verlassen</span>
+          </button>
+        </div>
       </header>
 
       {liveKit ? (
@@ -185,6 +265,9 @@ export default function RoomPage() {
       ) : (
         playerGrid
       )}
+
+      {showGraveyard && <GraveyardPanel entries={graveyard} onClose={() => setShowGraveyard(false)} />}
+      {showSettings && <RoomSettingsModal room={room} onClose={() => setShowSettings(false)} />}
     </div>
   );
 }

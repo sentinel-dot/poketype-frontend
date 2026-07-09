@@ -1,18 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createRoom, saveCredentials } from "@/lib/soullinkApi";
-import { POOL_LABELS, type PokemonPool } from "@/lib/soullinkTypes";
+import { createRoom, saveCredentials, inviteToRoom } from "@/lib/soullinkApi";
+import { listFriends, type AuthUser } from "@/lib/authApi";
+import { useAuthStore } from "@/lib/authStore";
 import { ApiError } from "@/lib/apiclient";
-
-const POOLS = Object.entries(POOL_LABELS) as [PokemonPool, string][];
+import { toast } from "@/lib/toastStore";
 
 export default function CreateRoomPage() {
   const router = useRouter();
+  const authUser = useAuthStore((s) => s.user);
+  const hydrated = useAuthStore((s) => s.hydrated);
+
   const [name, setName] = useState("");
-  const [pool, setPool] = useState<PokemonPool>("all");
   const [gameName, setGameName] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,6 +23,15 @@ export default function CreateRoomPage() {
   const [createdRoomCode, setCreatedRoomCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
+  const [friends, setFriends] = useState<AuthUser[]>([]);
+  const [invited, setInvited] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (createdRoomCode && authUser) {
+      listFriends().then((l) => setFriends(l.friends)).catch(() => {});
+    }
+  }, [createdRoomCode, authUser]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -28,9 +39,8 @@ export default function CreateRoomPage() {
     try {
       const res = await createRoom({
         name: name.trim(),
-        pokemonPool: pool,
         gameName: gameName.trim() || undefined,
-        displayName: displayName.trim(),
+        displayName: authUser ? undefined : displayName.trim(),
       });
       saveCredentials(res.roomCode, res.participantToken, res.seatId);
       const link = `${window.location.origin}/soullink/${res.roomCode}/join`;
@@ -56,6 +66,17 @@ export default function CreateRoomPage() {
     await navigator.clipboard.writeText(joinLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function handleInvite(friend: AuthUser) {
+    if (!createdRoomCode) return;
+    try {
+      await inviteToRoom(createdRoomCode, friend.id);
+      setInvited((prev) => new Set(prev).add(friend.id));
+      toast.success(`${friend.displayName} eingeladen.`);
+    } catch {
+      toast.error("Einladung fehlgeschlagen.");
+    }
   }
 
   return (
@@ -118,22 +139,6 @@ export default function CreateRoomPage() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground" htmlFor="pool">
-                  Pokémon-Pool <span className="text-primary">*</span>
-                </label>
-                <select
-                  id="pool"
-                  value={pool}
-                  onChange={(e) => setPool(e.target.value as PokemonPool)}
-                  className="input-field"
-                >
-                  {POOLS.map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground" htmlFor="game-name">
                   Spiel <span className="font-normal normal-case text-muted-foreground/50">(optional)</span>
                 </label>
@@ -148,21 +153,27 @@ export default function CreateRoomPage() {
                 />
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground" htmlFor="display-name">
-                  Dein Name <span className="text-primary">*</span>
-                </label>
-                <input
-                  id="display-name"
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  maxLength={100}
-                  required
-                  placeholder="z. B. Ash"
-                  className="input-field"
-                />
-              </div>
+              {hydrated && !authUser && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground" htmlFor="display-name">
+                    Dein Name <span className="text-primary">*</span>
+                  </label>
+                  <input
+                    id="display-name"
+                    type="text"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    maxLength={100}
+                    required
+                    placeholder="z. B. Ash"
+                    className="input-field"
+                  />
+                  <p className="text-xs text-muted-foreground/60">
+                    <Link href="/login?redirect=/soullink/create" className="text-primary hover:underline">Anmelden</Link>{" "}
+                    für Freunde-Einladungen &amp; gespeicherte Räume.
+                  </p>
+                </div>
+              )}
 
               {error && (
                 <div
@@ -219,6 +230,39 @@ export default function CreateRoomPage() {
                   </button>
                 </div>
               </div>
+
+              {authUser && friends.length > 0 && (
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Freunde einladen
+                  </p>
+                  <div className="flex max-h-48 flex-col gap-1.5 overflow-y-auto">
+                    {friends.map((f) => {
+                      const done = invited.has(f.id);
+                      return (
+                        <div key={f.id} className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2">
+                          <span
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-black text-white"
+                            style={{ background: "linear-gradient(135deg, var(--primary), oklch(0.44 0.22 15))" }}
+                          >
+                            {f.displayName.charAt(0).toUpperCase()}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
+                            {f.displayName}
+                          </span>
+                          <button
+                            onClick={() => handleInvite(f)}
+                            disabled={done}
+                            className={done ? "badge-chip" : "btn-primary px-3 py-1.5 text-xs"}
+                          >
+                            {done ? "Eingeladen ✓" : "Einladen"}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <button
                 type="button"

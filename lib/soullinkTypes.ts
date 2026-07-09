@@ -34,6 +34,7 @@ export const POOL_LABELS: Record<PokemonPool, string> = {
 
 export type SeatStatus = "empty" | "joining" | "online" | "disconnected";
 export type SlotStatus = "empty" | "alive" | "dead";
+export type EncounterOutcome = "caught" | "dead" | "fled";
 
 export interface SoulLinkTeamSlot {
   slot: number;           // 1–6
@@ -42,6 +43,17 @@ export interface SoulLinkTeamSlot {
   pokemonName: string | null;
   nickname: string | null;
   level: number | null;
+  isShiny?: boolean;
+  encounterLabel?: string | null;
+  route?: string | null;
+}
+
+export interface UsedSpecies {
+  familyKey: number;
+  pokemonId: number;
+  pokemonName: string | null;
+  outcome: EncounterOutcome;
+  routeLabel: string | null;
 }
 
 export interface SoulLinkSeat {
@@ -50,7 +62,32 @@ export interface SoulLinkSeat {
   displayName: string | null;
   status: SeatStatus;
   joinedAt: string | null;
+  userId?: string | null;
+  deathCount?: number;
   teamSlots: SoulLinkTeamSlot[];
+  usedSpecies?: UsedSpecies[];
+}
+
+export interface Ruleset {
+  typeClause: boolean;
+  autoDeadSync: boolean;
+  dupesWarn: boolean;
+}
+
+export const DEFAULT_RULESET: Ruleset = {
+  typeClause: true,
+  autoDeadSync: true,
+  dupesWarn: true,
+};
+
+export interface GraveyardEntry {
+  seatId: string | null;
+  position: number | null;
+  displayName: string | null;
+  pokemonId: number;
+  pokemonName: string | null;
+  routeLabel: string | null;
+  diedAt: string | null;
 }
 
 export interface SoulLinkRoom {
@@ -60,6 +97,11 @@ export interface SoulLinkRoom {
   maxPlayers: number;
   pokemonPool: PokemonPool;
   gameName: string | null;
+  ownerUserId?: string | null;
+  badges?: number;
+  levelCap?: number | null;
+  ruleset?: Ruleset;
+  status?: string;
   createdAt: string;
 }
 
@@ -81,6 +123,7 @@ export interface JoinRoomResponse {
 export interface RoomStateResponse {
   room: SoulLinkRoom;
   seats: SoulLinkSeat[];
+  graveyard?: GraveyardEntry[];
 }
 
 // ---------------------------------------------------------------------------
@@ -90,14 +133,21 @@ export interface RoomStateResponse {
 export interface RoomStore {
   room: SoulLinkRoom | null;
   seats: SoulLinkSeat[];
+  graveyard: GraveyardEntry[];
   myToken: string | null;
   mySeatId: string | null;
 
   setMyCredentials: (token: string, seatId: string) => void;
-  setRoomState: (state: { room: SoulLinkRoom; seats: SoulLinkSeat[] }) => void;
+  setRoomState: (state: { room: SoulLinkRoom; seats: SoulLinkSeat[]; graveyard?: GraveyardEntry[] }) => void;
+  setRoom: (room: SoulLinkRoom) => void;
   updateSeat: (seatId: string, patch: Partial<SoulLinkSeat>) => void;
   updateSlot: (seatId: string, slot: number, slotData: Partial<SoulLinkTeamSlot>) => void;
   clearSlot: (seatId: string, slot: number) => void;
+  clearAllSlots: (seatId: string) => void;
+  setDeathCount: (seatId: string, deathCount: number) => void;
+  addUsedSpecies: (seatId: string, used: UsedSpecies) => void;
+  removeUsedSpecies: (seatId: string, familyKey: number) => void;
+  setGraveyard: (graveyard: GraveyardEntry[]) => void;
   reset: () => void;
 
   socket: Socket | null;

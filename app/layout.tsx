@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import AppProviders from "@/components/AppProviders";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -23,7 +24,9 @@ export default function RootLayout({
   return (
     <html lang="de" className={inter.variable}>
       <body className="min-h-screen flex flex-col font-sans">
-        <ErrorBoundary>{children}</ErrorBoundary>
+        <ErrorBoundary>
+          <AppProviders>{children}</AppProviders>
+        </ErrorBoundary>
       </body>
     </html>
   );

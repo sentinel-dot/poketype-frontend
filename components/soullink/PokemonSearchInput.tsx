@@ -2,11 +2,14 @@
 
 import { useState, useEffect, useRef } from "react";
 import { fetchSuggestions, getPixelSpriteUrl, type PokemonSuggestion } from "@/lib/apiclient";
+import { getFamilyKey } from "@/lib/soullinkApi";
+import type { UsedSpecies, EncounterOutcome } from "@/lib/soullinkTypes";
 
 interface PokemonSearchInputProps {
   value: PokemonSuggestion | null;
   onChange: (result: PokemonSuggestion | null) => void;
   placeholder?: string;
+  usedSpecies?: UsedSpecies[];
 }
 
 const dropdownStyle = {
@@ -16,18 +19,30 @@ const dropdownStyle = {
   backdropFilter: "blur(12px)",
 } as const;
 
+const OUTCOME_BADGE: Record<EncounterOutcome, { label: string; color: string; bg: string }> = {
+  caught: { label: "⚠ gefangen", color: "oklch(0.82 0.16 70)", bg: "oklch(0.65 0.2 60 / 0.14)" },
+  dead: { label: "☠ tot", color: "oklch(0.78 0.18 15)", bg: "oklch(0.55 0.22 15 / 0.16)" },
+  fled: { label: "🏃 geflohen", color: "oklch(0.7 0 0)", bg: "oklch(0.95 0 0 / 0.06)" },
+};
+
 export default function PokemonSearchInput({
   value,
   onChange,
   placeholder = "Pokémon suchen…",
+  usedSpecies,
 }: PokemonSearchInputProps) {
   const [name, setName] = useState(value ? (value.nameDE ?? value.nameEN ?? "") : "");
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<PokemonSuggestion[]>([]);
+  const [familyKeys, setFamilyKeys] = useState<Record<number, number>>({});
   const [activeIndex, setActiveIndex] = useState(-1);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const usedByFamily: Record<number, EncounterOutcome> = {};
+  for (const u of usedSpecies ?? []) usedByFamily[u.familyKey] = u.outcome;
+  const dupesEnabled = !!usedSpecies;
 
   useEffect(() => {
     if (value) {
@@ -49,12 +64,23 @@ export default function PokemonSearchInput({
       setSuggestions(results);
       setActiveIndex(-1);
       setShowSuggestions(results.length > 0);
+      // Resolve evolution families for dupes badges (cached client-side).
+      if (dupesEnabled) {
+        const entries = await Promise.all(
+          results.map(async (r) => [r.id, await getFamilyKey(r.id)] as const)
+        );
+        setFamilyKeys((prev) => {
+          const next = { ...prev };
+          for (const [id, key] of entries) next[id] = key;
+          return next;
+        });
+      }
     }, 300);
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query]);
+  }, [query, dupesEnabled]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -118,7 +144,11 @@ export default function PokemonSearchInput({
           className="absolute z-50 mt-1 max-h-52 w-full overflow-y-auto rounded-xl"
           style={dropdownStyle}
         >
-          {suggestions.map((s, i) => (
+          {suggestions.map((s, i) => {
+            const fam = familyKeys[s.id];
+            const outcome = dupesEnabled && fam !== undefined ? usedByFamily[fam] : undefined;
+            const badge = outcome ? OUTCOME_BADGE[outcome] : null;
+            return (
             <li
               key={s.id}
               role="option"
@@ -140,6 +170,8 @@ export default function PokemonSearchInput({
                   alt=""
                   width={36}
                   height={36}
+                  loading="lazy"
+                  decoding="async"
                   style={{ imageRendering: "pixelated" }}
                 />
               </div>
@@ -151,11 +183,21 @@ export default function PokemonSearchInput({
                   <span className="ml-2 text-xs text-muted-foreground">{s.nameEN}</span>
                 )}
               </div>
-              <span className="flex-shrink-0 text-xs text-muted-foreground/50">
-                #{String(s.id).padStart(3, "0")}
-              </span>
+              {badge ? (
+                <span
+                  className="flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold"
+                  style={{ color: badge.color, background: badge.bg }}
+                >
+                  {badge.label}
+                </span>
+              ) : (
+                <span className="flex-shrink-0 text-xs text-muted-foreground/50">
+                  #{String(s.id).padStart(3, "0")}
+                </span>
+              )}
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </div>

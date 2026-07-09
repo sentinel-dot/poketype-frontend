@@ -4,12 +4,15 @@ import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { joinRoom, saveCredentials } from "@/lib/soullinkApi";
+import { useAuthStore } from "@/lib/authStore";
 import { ApiError } from "@/lib/apiclient";
 
 export default function JoinRoomPage() {
   const router = useRouter();
   const params = useParams<{ roomCode: string }>();
   const roomCode = params.roomCode;
+  const authUser = useAuthStore((s) => s.user);
+  const hydrated = useAuthStore((s) => s.hydrated);
 
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -20,7 +23,7 @@ export default function JoinRoomPage() {
     setError(null);
     setLoading(true);
     try {
-      const res = await joinRoom(roomCode, displayName.trim());
+      const res = await joinRoom(roomCode, authUser ? undefined : displayName.trim());
       saveCredentials(roomCode, res.participantToken, res.seatId);
       router.push(`/soullink/${roomCode}`);
     } catch (err) {
@@ -79,22 +82,42 @@ export default function JoinRoomPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground" htmlFor="display-name">
-                Dein Name <span className="text-primary">*</span>
-              </label>
-              <input
-                id="display-name"
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                maxLength={100}
-                required
-                autoFocus
-                placeholder="z. B. Misty"
-                className="input-field"
-              />
-            </div>
+            {hydrated && authUser ? (
+              <div
+                className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3"
+              >
+                <span
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-black text-white"
+                  style={{ background: "linear-gradient(135deg, var(--primary), oklch(0.44 0.22 15))" }}
+                >
+                  {authUser.displayName.charAt(0).toUpperCase()}
+                </span>
+                <span className="text-sm text-foreground">
+                  Beitreten als <span className="font-bold">{authUser.displayName}</span>
+                </span>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground" htmlFor="display-name">
+                  Dein Name <span className="text-primary">*</span>
+                </label>
+                <input
+                  id="display-name"
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  maxLength={100}
+                  required
+                  autoFocus
+                  placeholder="z. B. Misty"
+                  className="input-field"
+                />
+                <p className="text-xs text-muted-foreground/60">
+                  <Link href={`/login?redirect=/soullink/${roomCode}/join`} className="text-primary hover:underline">Anmelden</Link>{" "}
+                  um deinen Fortschritt tagesübergreifend zu speichern.
+                </p>
+              </div>
+            )}
 
             {error && (
               <div
