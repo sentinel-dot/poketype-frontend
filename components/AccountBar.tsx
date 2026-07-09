@@ -124,29 +124,39 @@ export default function AccountBar() {
                   Keine Benachrichtigungen.
                 </p>
               ) : (
-                notifications.map((n) => (
+                notifications.map((n) => {
+                  const friendRequestUserId =
+                    n.type === "friend_request" && typeof n.payload?.userId === "string"
+                      ? n.payload.userId
+                      : null;
+                  const roomInviteCode =
+                    n.type === "room_invite" && typeof n.payload?.roomCode === "string"
+                      ? n.payload.roomCode
+                      : null;
+
+                  return (
                   <div key={n.id} className="rounded-lg px-3 py-2.5 transition-colors hover:bg-white/5">
                     <p className="text-sm text-foreground/85">{notificationText(n)}</p>
-                    {n.type === "friend_request" && n.payload?.userId && (
+                    {friendRequestUserId && (
                       <div className="mt-2 flex gap-2">
                         <button
-                          onClick={() => handleAccept(n.payload!.userId as string)}
+                          onClick={() => handleAccept(friendRequestUserId)}
                           className="btn-primary px-2.5 py-1 text-xs"
                         >
                           Annehmen
                         </button>
                         <button
-                          onClick={() => handleDecline(n.payload!.userId as string)}
+                          onClick={() => handleDecline(friendRequestUserId)}
                           className="btn-ghost px-2.5 py-1 text-xs"
                         >
                           Ablehnen
                         </button>
                       </div>
                     )}
-                    {n.type === "room_invite" && n.payload?.roomCode && (
+                    {roomInviteCode && (
                       <div className="mt-2">
                         <Link
-                          href={`/soullink/${n.payload.roomCode as string}/join`}
+                          href={`/soullink/${roomInviteCode}/join`}
                           onClick={() => setOpenBell(false)}
                           className="btn-primary inline-block px-2.5 py-1 text-xs"
                         >
@@ -155,7 +165,8 @@ export default function AccountBar() {
                       </div>
                     )}
                   </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
