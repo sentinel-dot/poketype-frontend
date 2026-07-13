@@ -43,7 +43,17 @@ export default function RoomPage() {
   const reset = useRoomStore((s) => s.reset);
   const authUser = useAuthStore((s) => s.user);
 
-  const { connection } = useRoomSocket(roomCode, myToken, setError, {
+  const { connection } = useRoomSocket(roomCode, myToken, (message) => {
+    // Our seat was reclaimed (stale disconnect) and handed to someone else —
+    // the stored token no longer resolves. Drop it and send the user through
+    // the normal (capacity-checked) join flow instead of showing a raw error.
+    if (message === "Invalid token or room code") {
+      clearCredentials(roomCode);
+      router.replace(`/soullink/${roomCode}/join`);
+      return;
+    }
+    setError(message);
+  }, {
     onLinkedDeath: (slot) => {
       setFlashSlot(slot);
       toast.warning(`Verknüpfter Tod in Slot ${slot}! Partner-Pokémon ist gefallen.`);
