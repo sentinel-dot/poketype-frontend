@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { useRoomStore } from "../soullinkStore";
-import type { SoulLinkSeat, SoulLinkTeamSlot, SoulLinkRoom, GraveyardEntry, UsedSpecies } from "../soullinkTypes";
+import type { SoulLinkSeat, SoulLinkTeamSlot, SoulLinkRoom, RouteEntry, Encounter } from "../soullinkTypes";
 import { getApiBase } from "../config";
 
 // Server → Client event payloads
 interface RoomStatePayload {
   room: SoulLinkRoom;
   seats: SoulLinkSeat[];
-  graveyard?: GraveyardEntry[];
+  routes?: RouteEntry[];
+  encounters?: Encounter[];
 }
 interface SeatPayload {
   seatId: string;
@@ -30,9 +31,12 @@ interface TeamSlotClearedPayload {
 export type ConnectionState = "connecting" | "online" | "reconnecting" | "offline";
 
 export interface RoomSocketEvents {
-  onLinkedDeath?: (slot: number) => void;
+  /** A route-linked death cascaded to the other players on that route. */
+  onLinkedDeath?: () => void;
   onSeatJoined?: (displayName: string | null) => void;
   onSeatLeft?: (seatId: string) => void;
+  /** This client's own seat was removed by the room admin. */
+  onKicked?: () => void;
 }
 
 export function useRoomSocket(
@@ -103,13 +107,19 @@ export function useRoomSocket(
         status: "empty",
         displayName: null,
         teamSlots: [],
+        deathCount: 0,
       });
+      useRoomStore.getState().clearSeatEncounters(payload.seatId);
       eventsRef.current?.onSeatLeft?.(payload.seatId);
+    });
+
+    // Server targets this event only at the kicked player's own sockets.
+    socket.on("seat:kicked", () => {
+      eventsRef.current?.onKicked?.();
     });
 
     socket.on("team-slot:updated", (payload: TeamSlotUpdatedPayload) => {
       useRoomStore.getState().updateSlot(payload.seatId, payload.slot, payload.slotData);
-      if (payload.linkedDeath) eventsRef.current?.onLinkedDeath?.(payload.slot);
     });
 
     socket.on("team-slot:cleared", (payload: TeamSlotClearedPayload) => {
@@ -124,16 +134,25 @@ export function useRoomSocket(
       useRoomStore.getState().setDeathCount(payload.seatId, payload.deathCount);
     });
 
-    socket.on("encounter:added", (payload: { seatId: string; used: UsedSpecies }) => {
-      useRoomStore.getState().addUsedSpecies(payload.seatId, payload.used);
+    // ── Central encounter matrix ─────────────────────────────────────────────
+    socket.on("routes:updated", (payload: { routes: RouteEntry[] }) => {
+      useRoomStore.getState().setRoutes(payload.routes);
     });
 
-    socket.on("encounter:removed", (payload: { seatId: string; familyKey: number }) => {
-      useRoomStore.getState().removeUsedSpecies(payload.seatId, payload.familyKey);
+    socket.on("route:deleted", (payload: { routeId: string }) => {
+      useRoomStore.getState().removeRoute(payload.routeId);
     });
 
-    socket.on("slot:link-dead", (payload: { slot: number }) => {
-      eventsRef.current?.onLinkedDeath?.(payload.slot);
+    socket.on("encounter:updated", (payload: { encounter: Encounter; linkedDeath?: boolean }) => {
+      useRoomStore.getState().upsertEncounter(payload.encounter);
+    });
+
+    socket.on("encounter:removed", (payload: { seatId: string; routeId: string }) => {
+      useRoomStore.getState().removeEncounterCell(payload.seatId, payload.routeId);
+    });
+
+    socket.on("route:link-dead", () => {
+      eventsRef.current?.onLinkedDeath?.();
     });
 
     socket.on("error", (payload: { message: string }) => {

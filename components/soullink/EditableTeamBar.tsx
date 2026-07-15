@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import type { SoulLinkTeamSlot } from "@/lib/soullinkTypes";
 import { useRoomStore } from "@/lib/soullinkStore";
@@ -13,7 +13,6 @@ interface EditableTeamBarProps {
   slots: SoulLinkTeamSlot[];
   isOwn: boolean;
   levelCap?: number | null;
-  flashSlot?: number | null;
 }
 
 function normalizeSlots(slots: SoulLinkTeamSlot[]): SoulLinkTeamSlot[] {
@@ -32,7 +31,7 @@ function normalizeSlots(slots: SoulLinkTeamSlot[]): SoulLinkTeamSlot[] {
   });
 }
 
-export default function EditableTeamBar({ seatId, slots, isOwn, levelCap, flashSlot }: EditableTeamBarProps) {
+export default function EditableTeamBar({ seatId, slots, isOwn, levelCap }: EditableTeamBarProps) {
   const params = useParams<{ roomCode: string }>();
   const roomCode = params.roomCode;
   const socket = useRoomStore((s) => s.socket);
@@ -41,7 +40,7 @@ export default function EditableTeamBar({ seatId, slots, isOwn, levelCap, flashS
   const [editingSlot, setEditingSlot] = useState<number | null>(null);
   const [detailSlot, setDetailSlot] = useState<number | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
-  const normalized = normalizeSlots(slots);
+  const normalized = useMemo(() => normalizeSlots(slots), [slots]);
   const hasAny = normalized.some((s) => s.status !== "empty");
 
   function handleSlotClick(slot: SoulLinkTeamSlot) {
@@ -71,7 +70,6 @@ export default function EditableTeamBar({ seatId, slots, isOwn, levelCap, flashS
               slot={slot}
               isOwn={isOwn}
               levelCap={levelCap}
-              highlight={flashSlot != null && flashSlot === slot.slot && slot.status === "dead"}
               onClick={() => handleSlotClick(slot)}
             />
           ))}

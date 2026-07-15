@@ -3,8 +3,6 @@ import type {
   JoinRoomResponse,
   RoomStateResponse,
   Ruleset,
-  UsedSpecies,
-  EncounterOutcome,
 } from "./soullinkTypes";
 import { ApiError, isNetworkError, NETWORK_ERROR_MESSAGE } from "./apiclient";
 import { getApiBase } from "./config";
@@ -32,6 +30,7 @@ export interface CreateRoomPayload {
   name: string;
   gameName?: string;
   displayName?: string;
+  maxPlayers?: 2 | 3;
 }
 
 export async function createRoom(payload: CreateRoomPayload): Promise<CreateRoomResponse> {
@@ -180,35 +179,6 @@ export async function updateDeathCount(
     }
   );
   return handleResponse<{ deathCount: number }>(res);
-}
-
-export async function addEncounter(
-  roomCode: string,
-  seatId: string,
-  pokemonId: number,
-  outcome: EncounterOutcome,
-  routeLabel: string | null,
-  participantToken: string
-): Promise<{ used: UsedSpecies }> {
-  const res = await fetch(`${getApiBase()}/soullink/rooms/${roomCode}/encounters`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ seatId, pokemonId, outcome, routeLabel, participantToken }),
-  });
-  return handleResponse<{ used: UsedSpecies }>(res);
-}
-
-export async function removeEncounter(
-  roomCode: string,
-  seatId: string,
-  familyKey: number,
-  participantToken: string
-): Promise<void> {
-  await fetch(`${getApiBase()}/soullink/rooms/${roomCode}/encounters/${familyKey}`, {
-    method: "DELETE",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ seatId, participantToken }),
-  });
 }
 
 const familyKeyCache = new Map<number, number>();

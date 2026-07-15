@@ -16,6 +16,7 @@ export default function CreateRoomPage() {
 
   const [name, setName] = useState("");
   const [gameName, setGameName] = useState("");
+  const [maxPlayers, setMaxPlayers] = useState<2 | 3>(3);
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +41,7 @@ export default function CreateRoomPage() {
       const res = await createRoom({
         name: name.trim(),
         gameName: gameName.trim() || undefined,
+        maxPlayers,
         displayName: authUser ? undefined : displayName.trim(),
       });
       saveCredentials(res.roomCode, res.participantToken, res.seatId);
@@ -151,6 +153,38 @@ export default function CreateRoomPage() {
                   placeholder="z. B. Emerald"
                   className="input-field"
                 />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Spieler
+                </label>
+                <div
+                  className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-card p-1"
+                  role="radiogroup"
+                  aria-label="Anzahl der Spieler"
+                >
+                  {([2, 3] as const).map((count) => {
+                    const active = maxPlayers === count;
+                    return (
+                      <button
+                        key={count}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        onClick={() => setMaxPlayers(count)}
+                        className="rounded-lg py-2 text-sm font-bold transition-all duration-200"
+                        style={{
+                          background: active ? "var(--primary)" : "transparent",
+                          color: active ? "white" : "oklch(0.6 0 0)",
+                          boxShadow: active ? "0 4px 12px var(--primary-glow)" : undefined,
+                        }}
+                      >
+                        {count} Spieler
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {hydrated && !authUser && (

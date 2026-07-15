@@ -56,6 +56,26 @@ export interface UsedSpecies {
   routeLabel: string | null;
 }
 
+/** A row of the central encounter matrix (a route / location). */
+export interface RouteEntry {
+  id: string;
+  label: string;
+  position: number;
+}
+
+/** One filled cell of the matrix: a player's encounter on a route. */
+export interface Encounter {
+  seatId: string;
+  routeId: string;
+  familyKey: number;
+  pokemonId: number;
+  pokemonName: string | null;
+  outcome: EncounterOutcome;
+  nickname: string | null;
+  level: number | null;
+  isShiny: boolean;
+}
+
 export interface SoulLinkSeat {
   id: string;
   position: number;       // 1–3
@@ -65,7 +85,6 @@ export interface SoulLinkSeat {
   userId?: string | null;
   deathCount?: number;
   teamSlots: SoulLinkTeamSlot[];
-  usedSpecies?: UsedSpecies[];
 }
 
 export interface Ruleset {
@@ -124,6 +143,8 @@ export interface RoomStateResponse {
   room: SoulLinkRoom;
   seats: SoulLinkSeat[];
   graveyard?: GraveyardEntry[];
+  routes?: RouteEntry[];
+  encounters?: Encounter[];
 }
 
 // ---------------------------------------------------------------------------
@@ -133,21 +154,32 @@ export interface RoomStateResponse {
 export interface RoomStore {
   room: SoulLinkRoom | null;
   seats: SoulLinkSeat[];
-  graveyard: GraveyardEntry[];
+  routes: RouteEntry[];
+  encounters: Encounter[];
   myToken: string | null;
   mySeatId: string | null;
 
   setMyCredentials: (token: string, seatId: string) => void;
-  setRoomState: (state: { room: SoulLinkRoom; seats: SoulLinkSeat[]; graveyard?: GraveyardEntry[] }) => void;
+  setRoomState: (state: {
+    room: SoulLinkRoom;
+    seats: SoulLinkSeat[];
+    routes?: RouteEntry[];
+    encounters?: Encounter[];
+  }) => void;
   setRoom: (room: SoulLinkRoom) => void;
   updateSeat: (seatId: string, patch: Partial<SoulLinkSeat>) => void;
   updateSlot: (seatId: string, slot: number, slotData: Partial<SoulLinkTeamSlot>) => void;
   clearSlot: (seatId: string, slot: number) => void;
   clearAllSlots: (seatId: string) => void;
   setDeathCount: (seatId: string, deathCount: number) => void;
-  addUsedSpecies: (seatId: string, used: UsedSpecies) => void;
-  removeUsedSpecies: (seatId: string, familyKey: number) => void;
-  setGraveyard: (graveyard: GraveyardEntry[]) => void;
+
+  // Central encounter matrix
+  setRoutes: (routes: RouteEntry[]) => void;
+  removeRoute: (routeId: string) => void;
+  upsertEncounter: (encounter: Encounter) => void;
+  removeEncounterCell: (seatId: string, routeId: string) => void;
+  clearSeatEncounters: (seatId: string) => void;
+
   reset: () => void;
 
   socket: Socket | null;

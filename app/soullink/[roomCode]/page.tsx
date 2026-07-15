@@ -1,16 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useShallow } from "zustand/react/shallow";
 import { LiveKitRoom } from "@livekit/components-react";
 import { getRoom, loadCredentials, clearCredentials, leaveRoom } from "@/lib/soullinkApi";
-import { useRoomStore } from "@/lib/soullinkStore";
+import { useRoomStore, useGraveyard } from "@/lib/soullinkStore";
 import { useAuthStore } from "@/lib/authStore";
 import { useRoomSocket, type ConnectionState } from "@/lib/hooks/useRoomSocket";
 import { useLiveKit } from "@/lib/hooks/useLiveKit";
 import { toast } from "@/lib/toastStore";
 import PlayerColumn from "@/components/soullink/PlayerColumn";
 import GraveyardPanel from "@/components/soullink/GraveyardPanel";
+import EncounterMatrix from "@/components/soullink/EncounterMatrix";
 import RoomSettingsModal from "@/components/soullink/RoomSettingsModal";
 
 const CONNECTION_META: Record<ConnectionState, { label: string; color: string }> = {
@@ -28,14 +30,18 @@ export default function RoomPage() {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [codeCopied, setCodeCopied] = useState(false);
-  const [flashSlot, setFlashSlot] = useState<number | null>(null);
   const [showGraveyard, setShowGraveyard] = useState(false);
+  const [showEncounters, setShowEncounters] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const room = useRoomStore((s) => s.room);
-  const seats = useRoomStore((s) => s.seats);
-  const graveyard = useRoomStore((s) => s.graveyard);
+  // Subscribe only to the stable seat ORDER — not the seat contents. Each
+  // PlayerColumn subscribes to its own seat via useSeat, so a slot edit
+  // re-renders just that column, never the whole grid (and never the video).
+  const seatOrder = useRoomStore(
+    useShallow((s) => [...s.seats].sort((a, b) => a.position - b.position).map((x) => x.id))
+  );
+  const graveyard = useGraveyard();
   const myToken = useRoomStore((s) => s.myToken);
   const mySeatId = useRoomStore((s) => s.mySeatId);
   const setMyCredentials = useRoomStore((s) => s.setMyCredentials);
@@ -54,14 +60,17 @@ export default function RoomPage() {
     }
     setError(message);
   }, {
-    onLinkedDeath: (slot) => {
-      setFlashSlot(slot);
-      toast.warning(`Verknüpfter Tod in Slot ${slot}! Partner-Pokémon ist gefallen.`);
-      if (flashTimer.current) clearTimeout(flashTimer.current);
-      flashTimer.current = setTimeout(() => setFlashSlot(null), 3500);
+    onLinkedDeath: () => {
+      toast.warning("Verknüpfter Tod! Die Partner-Pokémon dieser Route sind gefallen.");
     },
     onSeatJoined: (name) => toast.info(`${name ?? "Ein Spieler"} ist beigetreten.`),
     onSeatLeft: () => toast.info("Ein Spieler hat den Raum verlassen."),
+    onKicked: () => {
+      clearCredentials(roomCode);
+      reset();
+      toast.warning("Du wurdest vom Admin aus dem Raum entfernt.");
+      router.replace("/");
+    },
   });
   const liveKit = useLiveKit(roomCode, mySeatId, myToken);
 
@@ -123,19 +132,22 @@ export default function RoomPage() {
     );
   }
 
-  const sorted = [...seats].sort((a, b) => a.position - b.position);
   const isOwner = !!(room.ownerUserId && authUser && room.ownerUserId === authUser.id);
   const conn = CONNECTION_META[connection];
 
   const playerGrid = (
-    <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto [grid-auto-rows:78vh] md:grid-cols-3 md:overflow-hidden md:[grid-auto-rows:auto]">
-      {sorted.map((seat) => (
+    <div
+      className={`grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto [grid-auto-rows:78vh] md:overflow-hidden md:[grid-auto-rows:auto] ${
+        room.maxPlayers === 2 ? "md:grid-cols-2" : "md:grid-cols-3"
+      }`}
+    >
+      {seatOrder.map((seatId) => (
         <PlayerColumn
-          key={seat.id}
-          seat={seat}
+          key={seatId}
+          seatId={seatId}
           mySeatId={mySeatId}
           levelCap={room.levelCap}
-          flashSlot={flashSlot}
+          canEditAll={isOwner}
         />
       ))}
     </div>
@@ -225,6 +237,19 @@ export default function RoomPage() {
             {conn.label}
           </span>
 
+          {/* Encounter matrix */}
+          <button
+            onClick={() => setShowEncounters(true)}
+            title="Begegnungen (Route-Tracker)"
+            aria-label="Begegnungen"
+            className="flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-sm transition-colors hover:brightness-110"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z" />
+            </svg>
+            <span className="hidden text-xs font-bold text-muted-foreground sm:inline">Begegnungen</span>
+          </button>
+
           {/* Graveyard */}
           <button
             onClick={() => setShowGraveyard(true)}
@@ -277,6 +302,13 @@ export default function RoomPage() {
       )}
 
       {showGraveyard && <GraveyardPanel entries={graveyard} onClose={() => setShowGraveyard(false)} />}
+      {showEncounters && (
+        <EncounterMatrix
+          mySeatId={mySeatId}
+          canEditAll={isOwner}
+          onClose={() => setShowEncounters(false)}
+        />
+      )}
       {showSettings && <RoomSettingsModal room={room} onClose={() => setShowSettings(false)} />}
     </div>
   );

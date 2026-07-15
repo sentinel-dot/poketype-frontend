@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { joinRoom, saveCredentials } from "@/lib/soullinkApi";
+import { joinRoom, saveCredentials, loadCredentials } from "@/lib/soullinkApi";
 import { useAuthStore } from "@/lib/authStore";
 import { ApiError } from "@/lib/apiclient";
 
@@ -17,6 +17,18 @@ export default function JoinRoomPage() {
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [checkingCreds, setCheckingCreds] = useState(true);
+
+  // Already hold a seat in this room? Go straight in instead of claiming a
+  // second seat. The room page revalidates the token via socket and, if it's
+  // stale, sends the user back here with credentials cleared.
+  useEffect(() => {
+    if (loadCredentials(roomCode)) {
+      router.replace(`/soullink/${roomCode}`);
+    } else {
+      setCheckingCreds(false);
+    }
+  }, [roomCode, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -37,6 +49,14 @@ export default function JoinRoomPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (checkingCreds) {
+    return (
+      <main className="flex min-h-screen items-center justify-center">
+        <div className="pokeball" aria-label="Lädt…" />
+      </main>
+    );
   }
 
   return (

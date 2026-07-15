@@ -5,14 +5,17 @@ import type {
   SoulLinkRoom,
   SoulLinkSeat,
   SoulLinkTeamSlot,
-  GraveyardEntry,
+  RouteEntry,
+  Encounter,
   UsedSpecies,
+  GraveyardEntry,
 } from "./soullinkTypes";
 
 export const useRoomStore = create<RoomStore>((set) => ({
   room: null,
   seats: [],
-  graveyard: [],
+  routes: [],
+  encounters: [],
   myToken: null,
   mySeatId: null,
 
@@ -20,8 +23,8 @@ export const useRoomStore = create<RoomStore>((set) => ({
     set({ myToken: token, mySeatId: seatId });
   },
 
-  setRoomState({ room, seats, graveyard }: { room: SoulLinkRoom; seats: SoulLinkSeat[]; graveyard?: GraveyardEntry[] }) {
-    set({ room, seats, graveyard: graveyard ?? [] });
+  setRoomState({ room, seats, routes, encounters }) {
+    set({ room, seats, routes: routes ?? [], encounters: encounters ?? [] });
   },
 
   setRoom(room: SoulLinkRoom) {
@@ -86,35 +89,44 @@ export const useRoomStore = create<RoomStore>((set) => ({
     }));
   },
 
-  addUsedSpecies(seatId, used: UsedSpecies) {
+  // ── Central encounter matrix ──────────────────────────────────────────────
+
+  setRoutes(routes: RouteEntry[]) {
+    set({ routes: [...routes].sort((a, b) => a.position - b.position) });
+  },
+
+  removeRoute(routeId) {
     set((state) => ({
-      seats: state.seats.map((s) => {
-        if (s.id !== seatId) return s;
-        const existing = s.usedSpecies ?? [];
-        const others = existing.filter((u) => u.familyKey !== used.familyKey);
-        return { ...s, usedSpecies: [...others, used] };
-      }),
+      routes: state.routes.filter((r) => r.id !== routeId),
+      encounters: state.encounters.filter((e) => e.routeId !== routeId),
     }));
   },
 
-  removeUsedSpecies(seatId, familyKey) {
+  upsertEncounter(encounter: Encounter) {
+    set((state) => {
+      const others = state.encounters.filter(
+        (e) => !(e.seatId === encounter.seatId && e.routeId === encounter.routeId)
+      );
+      return { encounters: [...others, encounter] };
+    });
+  },
+
+  removeEncounterCell(seatId, routeId) {
     set((state) => ({
-      seats: state.seats.map((s) => {
-        if (s.id !== seatId) return s;
-        return {
-          ...s,
-          usedSpecies: (s.usedSpecies ?? []).filter((u) => u.familyKey !== familyKey),
-        };
-      }),
+      encounters: state.encounters.filter(
+        (e) => !(e.seatId === seatId && e.routeId === routeId)
+      ),
     }));
   },
 
-  setGraveyard(graveyard) {
-    set({ graveyard });
+  clearSeatEncounters(seatId) {
+    set((state) => ({
+      encounters: state.encounters.filter((e) => e.seatId !== seatId),
+    }));
   },
 
   reset() {
-    set({ room: null, seats: [], graveyard: [], myToken: null, mySeatId: null });
+    set({ room: null, seats: [], routes: [], encounters: [], myToken: null, mySeatId: null });
   },
 
   socket: null,
@@ -130,9 +142,53 @@ export function useSeat(seatId: string): SoulLinkSeat | undefined {
   return useRoomStore((s) => s.seats.find((seat) => seat.id === seatId));
 }
 
-/** The used-species registry of a seat (for dupes checks). */
+/** Ordered routes of the room. */
+export function useRoutes(): RouteEntry[] {
+  return useRoomStore((s) => s.routes);
+}
+
+/** All encounters of the room (matrix cells). */
+export function useEncounters(): Encounter[] {
+  return useRoomStore((s) => s.encounters);
+}
+
+/** The used-species registry of a seat, derived from its encounters. */
 export function useUsedSpecies(seatId: string | null): UsedSpecies[] {
   return useRoomStore(
-    useShallow((s) => (seatId ? s.seats.find((seat) => seat.id === seatId)?.usedSpecies ?? [] : []))
+    useShallow((s) =>
+      seatId
+        ? s.encounters
+            .filter((e) => e.seatId === seatId)
+            .map((e) => ({
+              familyKey: e.familyKey,
+              pokemonId: e.pokemonId,
+              pokemonName: e.pokemonName,
+              outcome: e.outcome,
+              routeLabel: s.routes.find((r) => r.id === e.routeId)?.label ?? null,
+            }))
+        : []
+    )
+  );
+}
+
+/** Graveyard derived from dead encounters, enriched with player + route. */
+export function useGraveyard(): GraveyardEntry[] {
+  return useRoomStore(
+    useShallow((s) =>
+      s.encounters
+        .filter((e) => e.outcome === "dead")
+        .map((e) => {
+          const seat = s.seats.find((x) => x.id === e.seatId);
+          return {
+            seatId: e.seatId,
+            position: seat?.position ?? null,
+            displayName: seat?.displayName ?? null,
+            pokemonId: e.pokemonId,
+            pokemonName: e.pokemonName,
+            routeLabel: s.routes.find((r) => r.id === e.routeId)?.label ?? null,
+            diedAt: null,
+          };
+        })
+    )
   );
 }
