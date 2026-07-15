@@ -127,7 +127,10 @@ function PlayerColumn({ seatId, mySeatId, levelCap, canEditAll }: PlayerColumnPr
       {/* Camera */}
       <div
         className="relative flex-[2] min-h-0 overflow-hidden"
-        style={{ borderBottom: "1px solid oklch(0.95 0 0 / 0.07)" }}
+        style={{
+          borderBottom: "1px solid oklch(0.95 0 0 / 0.07)",
+          background: "var(--stream-bg)",
+        }}
       >
         <DeathCounter seatId={seat.id} isOwn={canEdit} />
         <CameraFeed seatId={seat.id} isOwn={isOwn} />

@@ -77,7 +77,7 @@ function CameraFeedLive({
   if (isStreaming && track?.publication) {
     return (
       <div className="relative h-full w-full">
-        <VideoTrack trackRef={track} className="h-full w-full object-cover" />
+        <VideoTrack trackRef={track} className="h-full w-full object-contain" />
         {isOwn && (
           <div className="absolute bottom-2 left-1/2 z-10 -translate-x-1/2">
             <StreamStopChip
